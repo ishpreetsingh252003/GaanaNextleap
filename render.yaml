@@ -1,0 +1,28 @@
+# Render Blueprint for GaanaNextleap (phase3 services)
+# Deploys: phase3 backend, phase3 main frontend, phase3 scraper frontend
+# Adjust branch/path as needed before deploying on Render
+
+services:
+  - type: web
+    name: gaana-phase3-backend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: cd phase3/backend && npm ci && npm run build
+    startCommand: cd phase3/backend && npm run start
+
+  - type: web
+    name: gaana-phase3-main-frontend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: cd phase3/main-frontend && npm ci && npm run build
+    startCommand: cd phase3/main-frontend && node node_modules/next/dist/bin/next start -p $PORT
+
+  - type: web
+    name: gaana-phase3-scraper-frontend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: cd phase3/scraper-frontend && npm ci && npm run build
+    startCommand: cd phase3/scraper-frontend && node node_modules/next/dist/bin/next start -p $PORT
