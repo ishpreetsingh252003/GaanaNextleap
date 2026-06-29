@@ -7,5 +7,5 @@ services:
     env: node
     plan: free
     branch: main
-    buildCommand: cd phase3/backend && npm ci && npm run build
+    buildCommand: cd phase3/backend && npm install && npm run build
     startCommand: cd phase3/backend && npm run start
