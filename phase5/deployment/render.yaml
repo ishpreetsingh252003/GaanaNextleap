@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: gaana-phase5-backend
+    env: node
+    plan: free
+    branch: main
+    rootDir: phase5/backend
+    buildCommand: cd phase5/backend && npm install && npm run build
+    startCommand: cd phase5/backend && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

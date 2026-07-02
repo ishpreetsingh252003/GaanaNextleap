@@ -1,6 +1,19 @@
 import Groq from "groq-sdk";
 import { Review } from "../types/review";
 
+/**
+ * GroqService
+ *
+ * Wraps the Groq SDK for two core AI flows:
+ *   1. `analyzeReviews` – batch sentiment / theme extraction from cleaned reviews.
+ *   2. `generateRecommendations` – contextual music recommendations from user preferences.
+ *
+ * Features:
+ *  - Singleton-style access via `getGroqService()`.
+ *  - Automatic retry with exponential backoff for transient errors (429 / 5xx / aborted).
+ *  - Token-usage logging for cost monitoring.
+ *  - Graceful JSON.parse fallback when the model returns non-JSON content.
+ */
 class GroqService {
   private client: Groq | null = null;
 
@@ -24,6 +37,62 @@ class GroqService {
     return this.client;
   }
 
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    operationName = "groq_operation"
+  ): Promise<T> {
+    let lastErr: unknown;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const startTime = Date.now();
+      try {
+        const result = await operation();
+        const duration = Date.now() - startTime;
+        console.log(`[GroqService] ${operationName} completed in ${duration}ms`);
+        return result;
+      } catch (err: any) {
+        lastErr = err;
+        const isRetryable =
+          err?.status === 429 ||
+          err?.status >= 500 ||
+          err?.code === "ECONNABORTED";
+
+        if (isRetryable && attempt < maxRetries) {
+          const wait = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+          console.warn(
+            `[GroqService] Retry ${attempt + 1}/${maxRetries} for ${operationName} in ${Math.round(wait)}ms`
+          );
+          await this.sleep(wait);
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  private logTokenUsage(response: any, model: string): void {
+    const usage = response?.usage;
+    if (usage) {
+      console.log(
+        `[GroqService] Token usage - Model: ${model}, ` +
+          `Prompt: ${usage.prompt_tokens || "N/A"}, ` +
+          `Completion: ${usage.completion_tokens || "N/A"}, ` +
+          `Total: ${usage.total_tokens || "N/A"}`
+      );
+    }
+  }
+
+  /**
+   * Analyze an array of cleaned reviews and return structured AI insights.
+   * @param reviews Array of Review objects (cleaned). Capped at 100 for context limits.
+   * @returns Parsed JSON with themes, sentiment, problem statement, etc.
+   */
   async analyzeReviews(reviews: Review[]): Promise<any> {
     const client = this.getClient();
 
@@ -31,8 +100,6 @@ class GroqService {
       throw new Error("No reviews provided for analysis.");
     }
 
-    // Limit reviews in single call to avoid context token overflow
-    // Standard prompt compiles text from up to 100 reviews. Let's take the first 100 reviews.
     const maxReviewsToAnalyze = 100;
     const subset = reviews.slice(0, maxReviewsToAnalyze);
 
@@ -76,33 +143,44 @@ Format your response as a valid JSON object. Ensure the "sentiment_summary" valu
 Do not include any introductory or concluding text outside the JSON object itself.`;
 
     try {
-      // Use Llama 3.3 70b since it's the current flagship model for text analysis on Groq,
-      // fallback to Mixtral if there are issues.
-      const response = await client.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.2, // Low temperature for consistent analysis extraction
-        response_format: { type: "json_object" },
-        max_tokens: 3000,
-      });
+      return await this.withRetry(async () => {
+        const response = await client.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+          max_tokens: 3000,
+        });
 
-      const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error("Received empty response content from Groq API.");
-      }
+        this.logTokenUsage(response, "llama-3.3-70b-versatile");
 
-      return JSON.parse(content);
+        const content = response.choices[0].message.content;
+        if (!content) {
+          throw new Error("Received empty response content from Groq API.");
+        }
+
+        try {
+          return JSON.parse(content);
+        } catch (parseErr) {
+          console.error("[GroqService] JSON parse error, returning raw content:", content);
+          return {
+            summary: "Analysis completed but returned invalid JSON. Raw response provided.",
+            raw_response: content,
+            _parse_error: true,
+          };
+        }
+      }, 3, "analyzeReviews");
     } catch (err) {
       console.error("[GroqService] Error running review analysis:", err);
       throw err;
     }
   }
 
+  /**
+   * Generate 8-10 personalized music recommendations from user preferences.
+   * @param preferences Mood, language, activity, freshness, optional reference, avoid list.
+   * @returns Parsed JSON with recommendations array and explanation.
+   */
   async generateRecommendations(preferences: {
     mood: string;
     language: string;
@@ -154,36 +232,44 @@ Guidelines:
 Format your response as valid JSON. Do not include any text outside the JSON object.`;
 
     try {
-      const response = await client.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.8, // Higher temperature for creative recommendations
-        response_format: { type: "json_object" },
-        max_tokens: 3500,
-      });
+      return await this.withRetry(async () => {
+        const response = await client.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.8,
+          response_format: { type: "json_object" },
+          max_tokens: 3500,
+        });
 
-      const content = response.choices[0].message.content;
-      if (!content) {
-        throw new Error("Received empty response content from Groq API.");
-      }
+        this.logTokenUsage(response, "llama-3.3-70b-versatile");
 
-      const result = JSON.parse(content);
-      
-      // Validate response structure
-      if (!result.recommendations || !Array.isArray(result.recommendations)) {
-        throw new Error("Invalid response structure: missing recommendations array");
-      }
+        const content = response.choices[0].message.content;
+        if (!content) {
+          throw new Error("Received empty response content from Groq API.");
+        }
 
-      if (result.recommendations.length < 8) {
-        console.warn("[GroqService] Received fewer than 8 recommendations");
-      }
+        let result: any;
+        try {
+          result = JSON.parse(content);
+        } catch (parseErr) {
+          console.error("[GroqService] JSON parse error, returning raw content:", content);
+          result = {
+            recommendations: [],
+            explanation: "Failed to parse response. Please try again.",
+            raw_response: content,
+          };
+        }
 
-      return result;
+        if (!result.recommendations || !Array.isArray(result.recommendations)) {
+          result.recommendations = [];
+        }
+
+        if (result.recommendations.length < 8) {
+          console.warn("[GroqService] Received fewer than 8 recommendations");
+        }
+
+        return result;
+      }, 3, "generateRecommendations");
     } catch (err) {
       console.error("[GroqService] Error generating recommendations:", err);
       throw err;
@@ -191,4 +277,15 @@ Format your response as valid JSON. Do not include any text outside the JSON obj
   }
 }
 
-export default new GroqService();
+export { GroqService };
+let instance: GroqService | null = null;
+
+/**
+ * Returns the singleton GroqService instance.
+ */
+export default function getGroqService(): GroqService {
+  if (!instance) {
+    instance = new GroqService();
+  }
+  return instance;
+}

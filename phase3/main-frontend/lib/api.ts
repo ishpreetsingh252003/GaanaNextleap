@@ -58,3 +58,9 @@ export const scrapeReviews = (sources?: ReviewSource[]) =>
     method: "POST",
     body: JSON.stringify(sources?.length ? { sources } : {}),
   });
+
+export const analyzeReviews = (reviews: Review[]) =>
+  apiFetch<{ analysis: any }>("/api/analysis/review-analysis", {
+    method: "POST",
+    body: JSON.stringify({ reviews }),
+  });

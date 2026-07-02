@@ -19,13 +19,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow">
+      <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow" role="banner">
         <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
-        <nav className="flex gap-5 text-sm text-white/80">
-          <Link href="/reviews" className="hover:text-white">Reviews</Link>
-          <Link href="/dashboard" className="text-white font-semibold border-b border-white">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white">Discovery</Link>
-          <Link href="/about" className="hover:text-white">About</Link>
+        <nav className="flex gap-4 sm:gap-5 text-sm text-white/80" role="navigation" aria-label="Main navigation">
+          <Link href="/reviews" className="hover:text-white transition-colors hidden sm:inline">Reviews</Link>
+          <Link href="/dashboard" className="text-white font-semibold border-b border-white" aria-current="page">Dashboard</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors hidden sm:inline">Discovery</Link>
+          <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
@@ -35,17 +35,15 @@ export default function DashboardPage() {
             Phase 3 – Review Analysis
           </span>
           <h1 className="text-3xl font-bold mt-3 mb-2">Review Analysis Dashboard</h1>
-          <p className="text-gray-500">
-            This page shows the AI summary generated from scraped review data.
-          </p>
+          <p className="text-gray-500">AI summary generated from scraped review data.</p>
         </div>
 
         {analysis ? (
           <>
-            <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8" aria-label="Analysis metrics">
               <MetricCard label="Reviews Analysed" value={analysis.total_reviews_analyzed?.toString() ?? "—"} />
               <MetricCard label="Themes" value={(analysis.themes?.length ?? 0).toString()} />
-              <MetricCard label="Sentiment" value={`+${analysis.sentiment_summary?.positive ?? 0}%`} />
+              <MetricCard label="Sentiment Score" value={`+${analysis.sentiment_summary?.positive ?? 0}%`} />
               <MetricCard label="Target Segment" value={analysis.target_user_segment ? "Ready" : "—"} />
             </section>
 
@@ -72,9 +70,11 @@ export default function DashboardPage() {
             <section className="grid gap-6 mb-8">
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Sentiment</h2>
-                <SentimentBar label="Positive" value={analysis.sentiment_summary?.positive ?? 0} color="green" />
-                <SentimentBar label="Neutral" value={analysis.sentiment_summary?.neutral ?? 0} color="yellow" />
-                <SentimentBar label="Negative" value={analysis.sentiment_summary?.negative ?? 0} color="red" />
+                <div className="space-y-4">
+                  <SentimentBar label="Positive" value={analysis.sentiment_summary?.positive ?? 0} color="green" />
+                  <SentimentBar label="Neutral" value={analysis.sentiment_summary?.neutral ?? 0} color="yellow" />
+                  <SentimentBar label="Negative" value={analysis.sentiment_summary?.negative ?? 0} color="red" />
+                </div>
               </div>
 
               <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             <p className="text-gray-500 mb-6">
               Scrape reviews first on the Reviews page, then return here to see AI analysis results.
             </p>
-            <Link href="/reviews" className="inline-block bg-purple-700 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold">
+            <Link href="/reviews" className="inline-block bg-purple-700 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
               Go scrape reviews
             </Link>
           </div>
@@ -123,8 +123,13 @@ function SentimentBar({ label, value, color }: { label: string; value: number; c
         <span>{label}</span>
         <span>{value}%</span>
       </div>
-      <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color === "green" ? "bg-emerald-500" : color === "yellow" ? "bg-amber-400" : "bg-red-500"}`} style={{ width: `${value}%` }} />
+      <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden" role="img" aria-label={`${label} sentiment: ${value}%`}>
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            color === "green" ? "bg-emerald-500" : color === "yellow" ? "bg-amber-400" : "bg-red-500"
+          }`}
+          style={{ width: `${value}%` }}
+        />
       </div>
     </div>
   );
@@ -132,10 +137,10 @@ function SentimentBar({ label, value, color }: { label: string; value: number; c
 
 function ThemeCard({ theme }: { theme: any }) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5">
+    <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 hover:shadow-sm transition-shadow">
       <p className="text-sm font-semibold text-gray-800 mb-1">{theme.theme_name}</p>
       <p className="text-xs text-gray-500 mb-2">{theme.count} reviews</p>
-      <p className="text-sm text-gray-600 mb-2">{theme.description}</p>
+      <p className="text-sm text-gray-600 mb-3">{theme.description}</p>
       <div className="text-xs text-gray-500 space-y-1">
         <p><strong>Pain point:</strong> {theme.pain_point}</p>
         <p><strong>Opportunity:</strong> {theme.opportunity}</p>

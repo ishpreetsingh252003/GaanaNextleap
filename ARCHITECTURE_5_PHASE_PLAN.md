@@ -6,10 +6,36 @@ This document outlines a phased approach to building and deploying Gaana Discove
 
 **Technology Stack:**
 - Frontend: Next.js + React (Vercel deployment)
-- Backend: Node.js/Express (Railway deployment)
+- Backend: Node.js/Express (Render deployment)
 - AI Engine: Groq API (review analysis & music discovery)
 - Data: CSV + Google Play reviews (public sources)
-- Infrastructure: Vercel + Railway + GitHub
+- Infrastructure: Vercel + Render + GitHub
+
+---
+
+## Current Status
+This project is currently in Phase 3 of the planned roadmap.
+
+**Completed:**
+- Phase 1 foundation and API scaffolding
+- Phase 2 review scrapers, cleaning, and multi-source data ingestion
+- Phase 3 review analysis backend scaffolding and frontend page scaffolds
+
+**Current repo structure:**
+- `phase3/backend` — backend API, scraper orchestration, Groq analysis service
+- `phase3/main-frontend` — main app UI scaffold for review flow and discovery screen
+- `phase3/scraper-frontend` — optional standalone scraper utility UI
+
+**Deployment reality:**
+- Backend should be deployed on Render as `phase3/backend`
+- Main frontend should be deployed on Vercel from `phase3/main-frontend`
+- `phase3/scraper-frontend` is not required for the main product deployment
+
+**Pending work:**
+- Wire the dashboard to actual Groq analysis results
+- Build and deploy the Phase 4 Discovery Agent MVP
+- Add user research / interview validation documentation
+- Finalize production polish, error handling, and submission documentation
 
 ---
 

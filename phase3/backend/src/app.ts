@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import healthRoutes from "./routes/health";
 import reviewRoutes from "./routes/reviews";
 import analysisRoutes from "./routes/analysis";
+import discoveryRoutes from "./routes/discovery";
 import errorHandler from "./middleware/errorHandler";
 import { logger } from "./middleware/logger";
 
@@ -36,6 +37,7 @@ app.use(logger);
 app.use("/api", healthRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/analysis", analysisRoutes);
+app.use("/api", discoveryRoutes);
 
 // ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

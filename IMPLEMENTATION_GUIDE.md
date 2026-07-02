@@ -22,55 +22,74 @@
 
 ### Repository Structure
 ```
-gaana-discovery-ai/
-├── frontend/                    # Next.js application
-│   ├── app/
-│   │   ├── page.tsx            # Home page
-│   │   ├── reviews/            # Review Engine
-│   │   ├── dashboard/          # Review Dashboard
-│   │   ├── discovery/          # Discovery Agent
-│   │   └── about/              # About/Limitations
-│   ├── components/
-│   │   ├── ReviewForm.tsx
-│   │   ├── ReviewUploader.tsx
-│   │   ├── DashboardMetrics.tsx
-│   │   ├── ThemeCards.tsx
-│   │   ├── DiscoveryForm.tsx
-│   │   ├── RecommendationCards.tsx
-│   │   └── QuickActions.tsx
-│   ├── lib/
-│   │   ├── api.ts              # API client
-│   │   └── constants.ts        # Constants
-│   ├── .env.example
-│   ├── next.config.js
-│   └── package.json
-├── backend/                     # Express server
-│   ├── routes/
-│   │   ├── health.ts
-│   │   ├── reviews.ts          # Fetch & upload
-│   │   ├── analysis.ts         # Groq analysis
-│   │   └── discovery.ts        # Discovery agent
-│   ├── services/
-│   │   ├── groqService.ts      # Groq API integration
-│   │   ├── reviewProcessor.ts  # Data cleaning
-│   │   ├── piiRemover.ts       # PII detection
-│   │   └── googlePlayScraper.ts
-│   ├── types/
-│   │   ├── review.ts
-│   │   ├── analysis.ts
-│   │   └── recommendation.ts
-│   ├── middleware/
-│   │   ├── cors.ts
-│   │   ├── errorHandler.ts
-│   │   └── logger.ts
-│   ├── app.ts                  # Express app setup
-│   ├── server.ts               # Entry point
-│   ├── .env.example
-│   └── package.json
-├── README.md
+Gaana_Nextleap/
 ├── ARCHITECTURE_5_PHASE_PLAN.md
-└── IMPLEMENTATION_GUIDE.md
+├── IMPLEMENTATION_GUIDE.md
+├── problemstatementbrief.md
+├── phase1/
+├── phase2/
+└── phase3/
+    ├── backend/                 # Express backend for scraping and analysis
+    │   ├── package.json
+    │   ├── tsconfig.json
+    │   ├── src/
+    │   │   ├── app.ts
+    │   │   ├── server.ts
+    │   │   ├── middleware/
+    │   │   ├── routes/
+    │   │   ├── scrapers/
+    │   │   ├── services/
+    │   │   ├── types/
+    │   │   └── utils/
+    │   └── .env.example
+    ├── main-frontend/           # Main phase 3 frontend app
+    │   ├── package.json
+    │   ├── tsconfig.json
+    │   ├── next.config.js
+    │   ├── app/
+    │   │   ├── page.tsx
+    │   │   ├── reviews/page.tsx
+    │   │   ├── dashboard/page.tsx
+    │   │   ├── discovery/page.tsx
+    │   │   └── about/page.tsx
+    │   ├── lib/
+    │   │   └── api.ts
+    │   └── .env.example
+    └── scraper-frontend/        # Optional review scraping utility UI
+        ├── package.json
+        ├── tsconfig.json
+        ├── next.config.js
+        ├── app/
+        │   ├── page.tsx
+        │   ├── reviews/page.tsx
+        │   ├── dashboard/page.tsx
+        │   ├── discovery/page.tsx
+        │   └── about/page.tsx
+        ├── lib/
+        │   └── api.ts
+        └── .env.example
 ```
+
+## Current Repo Status
+This repository is currently centered on the Phase 3 review discovery engine and analysis stack.
+
+**Current implementation:**
+- `phase3/backend` provides review scraping, cleaning, PII removal, and Groq analysis support
+- `phase3/main-frontend` is the current main app scaffold with review scraping and discovery pages
+- `phase3/scraper-frontend` is an optional standalone scraper UI, not required for the main product deployment
+
+**Remaining work for full graduation submission:**
+- Build `/api/discovery-agent` and wire it into the `phase3/main-frontend` Discovery page
+- Render Groq analysis results on `/dashboard`
+- Capture user interviews and research validation artifacts
+- Polish deployment and production documentation
+
+### Current deployment configuration
+- Backend: Render service using `phase3/backend`
+- Main frontend: Vercel project using `phase3/main-frontend`
+- Use `NEXT_PUBLIC_BACKEND_URL` in Vercel to point to Render backend
+- `phase3/scraper-frontend` may be deployed separately if needed, but it is not required for the main product
+
 
 ### Initial Setup Commands
 
