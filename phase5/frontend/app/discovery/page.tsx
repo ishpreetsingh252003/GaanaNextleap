@@ -4,46 +4,18 @@ import Link from "next/link";
 import { useState } from "react";
 import { generateRecommendations, DiscoveryPreferences, DiscoveryResponse, BackendError } from "../../lib/api";
 
-const MOOD_OPTIONS = [
-  "Happy / Uplifting",
-  "Sad / Emotional",
-  "Relaxed / Chill",
-  "Energetic / Workout",
-  "Romantic",
-  "Focus / Study",
-  "Party / Dance",
-  "Nostalgic",
-];
+// Aligned with backend routes/discovery.ts VALID_* enums
+const MOOD_OPTIONS = ["Chill", "Sad", "Party", "Gym", "Travel", "Focus", "Romantic", "Energetic"];
+const LANGUAGE_OPTIONS = ["Hindi", "Punjabi", "Tamil", "Telugu", "Bhojpuri", "English", "Mixed"];
+const ACTIVITY_OPTIONS = ["Studying", "Travelling", "Gym", "Late night", "Party", "Work", "Relaxing"];
+const FRESHNESS_OPTIONS = ["Safe", "Balanced", "Fresh"];
 
-const LANGUAGE_OPTIONS = [
-  "Hindi",
-  "Punjabi",
-  "English",
-  "Tamil",
-  "Telugu",
-  "Bengali",
-  "Marathi",
-  "Kannada",
-  "Malayalam",
-  "Mixed / Any",
-];
-
-const ACTIVITY_OPTIONS = [
-  "Commute",
-  "Work / Study",
-  "Workout",
-  "Party",
-  "Relaxation",
-  "Sleep",
-  "Social gathering",
-  "Driving",
-];
-
-const FRESHNESS_OPTIONS = [
-  "Trending now (last 3 months)",
-  "Recent hits (last 6 months)",
-  "All-time classics",
-  "Balanced mix",
+const AVOID_OPTIONS = [
+  { value: "avoid_repeated_artists", label: "Avoid repeated artists" },
+  { value: "avoid_mainstream", label: "Avoid mainstream / viral hits" },
+  { value: "avoid_overplayed", label: "Avoid overplayed tracks" },
+  { value: "avoid_sad", label: "Avoid sad / melancholic tracks" },
+  { value: "avoid_slow", label: "Avoid slow tempo songs" },
 ];
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -54,22 +26,24 @@ export default function DiscoveryPage() {
   const [activity, setActivity] = useState("");
   const [freshness, setFreshness] = useState("");
   const [reference, setReference] = useState("");
-  const [avoidInput, setAvoidInput] = useState("");
   const [avoidList, setAvoidList] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [result, setResult] = useState<DiscoveryResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  function addAvoid() {
-    const trimmed = avoidInput.trim();
-    if (trimmed && !avoidList.includes(trimmed)) {
-      setAvoidList([...avoidList, trimmed]);
-      setAvoidInput("");
-    }
+  function toggleAvoid(value: string) {
+    setAvoidList((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
   }
 
-  function removeAvoid(item: string) {
-    setAvoidList(avoidList.filter((i) => i !== item));
+  function prefillDemo() {
+    setMood("Gym");
+    setLanguage("Punjabi");
+    setActivity("Gym");
+    setFreshness("Fresh");
+    setReference("Sidhu Moose Wala");
+    setAvoidList(["avoid_repeated_artists", "avoid_overplayed"]);
   }
 
   async function handleGenerate() {
@@ -113,23 +87,34 @@ export default function DiscoveryPage() {
       <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow" role="banner">
         <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
         <nav className="flex gap-4 sm:gap-5 text-sm text-white/80" role="navigation" aria-label="Main navigation">
-          <Link href="/reviews" className="hover:text-white transition-colors hidden sm:inline">Reviews</Link>
-          <Link href="/dashboard" className="hover:text-white transition-colors hidden sm:inline">Dashboard</Link>
-          <Link href="/discovery" className="text-white font-semibold border-b border-white" aria-current="page">Discovery</Link>
+          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          <Link href="/discovery" className="text-white font-semibold border-b border-white" aria-current="page">Discovery Agent</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="mb-8">
-          <span className="text-xs font-semibold uppercase tracking-wider text-green-600 bg-green-100 px-3 py-1 rounded-full">
-            Phase 4 – AI Discovery Agent
-          </span>
-          <h1 className="text-3xl font-bold mt-3 mb-2">Music Discovery Agent</h1>
-          <p className="text-gray-500">Personalized recommendations based on your mood, language, and activity preferences.</p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Music Discovery Agent</h1>
+          <p className="text-gray-500">AI-powered personalized recommendations based on your mood, language, and activity preferences.</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="flex gap-3 mb-8">
+          <button
+            onClick={prefillDemo}
+            type="button"
+            className="inline-flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+          >
+            🎤 Pre-fill Demo Query
+          </button>
+          <span className="text-xs text-gray-400 self-center">
+            Sets: Punjabi Gym songs like Sidhu Moose Wala — skip overplayed viral tracks
+          </span>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
             <label className="block text-sm font-semibold text-gray-700 mb-3" htmlFor="mood">
               Mood <span className="text-red-500" aria-hidden="true">*</span>
@@ -200,12 +185,12 @@ export default function DiscoveryPage() {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm md:col-span-2">
             <label className="block text-sm font-semibold text-gray-700 mb-3" htmlFor="reference">
-              Reference song (optional)
+              Reference artist or song (optional)
             </label>
             <input
               id="reference"
               type="text"
-              placeholder="e.g., 'Tum Hi Ho' by Arijit Singh"
+              placeholder="e.g., Sidhu Moose Wala, 'Tum Hi Ho' by Arijit Singh"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
@@ -213,48 +198,23 @@ export default function DiscoveryPage() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-3" htmlFor="avoid-input">
-              Artists / genres to avoid
-            </label>
-            <div className="flex gap-2 mb-3">
-              <input
-                id="avoid-input"
-                type="text"
-                placeholder="Add artist or genre to avoid..."
-                value={avoidInput}
-                onChange={(e) => setAvoidInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addAvoid()}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-              />
-              <button
-                onClick={addAvoid}
-                type="button"
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400"
-              >
-                Add
-              </button>
+            <p className="text-sm font-semibold text-gray-700 mb-3">What to avoid</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {AVOID_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 hover:text-gray-900 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={avoidList.includes(opt.value)}
+                    onChange={() => toggleAvoid(opt.value)}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-400 accent-purple-600"
+                  />
+                  {opt.label}
+                </label>
+              ))}
             </div>
-            {avoidList.length > 0 && (
-              <div className="flex flex-wrap gap-2" role="list" aria-label="Avoid list">
-                {avoidList.map((item) => (
-                  <span
-                    key={item}
-                    role="listitem"
-                    className="bg-red-50 border border-red-200 text-red-700 px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                  >
-                    {item}
-                    <button
-                      onClick={() => removeAvoid(item)}
-                      type="button"
-                      className="text-red-500 hover:text-red-700 font-bold focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
-                      aria-label={`Remove ${item} from avoid list`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
@@ -274,6 +234,10 @@ export default function DiscoveryPage() {
           )}
         </button>
 
+        <p className="text-xs text-gray-400 text-center mt-3">
+          This MVP uses publicly available metadata and AI inference to demonstrate the discovery experience. It does not represent Gaana&apos;s full internal catalog.
+        </p>
+
         {status === "error" && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6 text-red-700 text-sm" role="alert">
             ⚠️ {errorMsg}
@@ -291,7 +255,7 @@ export default function DiscoveryPage() {
               <button
                 onClick={() => {
                   setFreshness("Fresh");
-                  handleGenerate();
+                  setTimeout(handleGenerate, 0);
                 }}
                 type="button"
                 className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400"
@@ -302,7 +266,7 @@ export default function DiscoveryPage() {
                 onClick={() => {
                   const moodCycle = MOOD_OPTIONS[(MOOD_OPTIONS.indexOf(mood || "") + 1) % MOOD_OPTIONS.length];
                   setMood(moodCycle);
-                  handleGenerate();
+                  setTimeout(handleGenerate, 0);
                 }}
                 type="button"
                 className="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 text-purple-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-purple-100 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400"
@@ -314,7 +278,7 @@ export default function DiscoveryPage() {
                   if (!avoidList.includes("avoid_mainstream")) {
                     setAvoidList([...avoidList, "avoid_mainstream"]);
                   }
-                  handleGenerate();
+                  setTimeout(handleGenerate, 0);
                 }}
                 type="button"
                 className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -345,7 +309,7 @@ export default function DiscoveryPage() {
                       <p className="text-gray-700">{rec.why_this_fits}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 mb-1 font-medium">Language & mood fit</p>
+                      <p className="text-gray-500 mb-1 font-medium">Language &amp; mood fit</p>
                       <p className="text-gray-700">{rec.language_mood_fit}</p>
                     </div>
                   </div>

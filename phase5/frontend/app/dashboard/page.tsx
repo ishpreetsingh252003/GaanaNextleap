@@ -3,6 +3,56 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+const sampleAnalysis = {
+  summary: "Users are highly frustrated by repetitive recommendations and popularity bias. There is a strong, consistent demand for fresh indie/regional tracks, context-aware suggestions (gym, focus, sleep), and user-guided discovery control.",
+  total_reviews_analyzed: 8,
+  date_range: "2026-01-01 to 2026-07-02",
+  themes: [
+    {
+      theme_name: "Repetitive Recommendations & Playlist Fatigue",
+      count: 5,
+      description: "Users repeatedly report getting recommended the same familiar tracks and artists, leading to repetitive listening loop frustration.",
+      pain_point: "Inability to escape repetitive loops; staleness of recommendation feed.",
+      representative_quotes: [
+        "I am tired of listening to the same old songs. I love Hindi music, but the app keeps recommending the same 10 hits over and over.",
+        "The recommendations algorithm is broken. It does not matter if I choose chill or dance mood, it just plays the same viral Punjabi songs."
+      ],
+      opportunity: "Provide active discovery parameters that filter out already played tracks."
+    },
+    {
+      theme_name: "Niche & Regional Music Neglect",
+      count: 3,
+      description: "Standard algorithms favor mainstream popularity and viral hits, crowding out regional or niche artists.",
+      pain_point: "Low visibility for regional languages and non-mainstream artists.",
+      representative_quotes: [
+        "I try to find underrated indie or regional music but it constantly pushes mainstream Bollywood songs on my feed.",
+        "Everything recommended is mainstream and viral. What if I want regional music that is niche?"
+      ],
+      opportunity: "Create regional-first search filters and support active discovery of long-tail artists."
+    },
+    {
+      theme_name: "Inaccurate Context and Mood Matching",
+      count: 2,
+      description: "Algorithms fail to match recommendations to the user's specific context, activity, or mood.",
+      pain_point: "Mismatched tempos or themes (e.g. playing slow sad songs during workouts).",
+      representative_quotes: [
+        "I select Chill Hindi but it starts playing upbeat bhangra.",
+        "I want Gym music that actually matches my pace, and Focus music that doesn't have annoying lyrics."
+      ],
+      opportunity: "Implement user-controllable preferences mapping tempo, activity, and mood dynamically."
+    }
+  ],
+  sentiment_summary: {
+    positive: 10,
+    neutral: 25,
+    negative: 65
+  },
+  target_user_segment: "Young Indian listeners (18-30) who are digitally savvy, open to diverse genres and regional languages, but feel constrained by mainstream popularity filters.",
+  problem_statement: "Gaana listeners fall into repetitive listening loops because the recommendation system prioritizes familiarity and viral popularity. This restricts discovery of fresh, niche, and activity-appropriate tracks.",
+  business_opportunity: "Addressing recommendation fatigue through controllable, AI-native music curation will increase active session lengths, improve user satisfaction, and surface long-tail indie/regional catalog content.",
+  is_sample: true
+};
+
 export default function DashboardPage() {
   const [analysis, setAnalysis] = useState<any | null>(null);
 
@@ -17,26 +67,35 @@ export default function DashboardPage() {
     }
   }, []);
 
+  function loadSampleAnalysis() {
+    sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(sampleAnalysis));
+    setAnalysis(sampleAnalysis);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow" role="banner">
         <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
         <nav className="flex gap-4 sm:gap-5 text-sm text-white/80" role="navigation" aria-label="Main navigation">
-          <Link href="/reviews" className="hover:text-white transition-colors hidden sm:inline">Reviews</Link>
+          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="text-white font-semibold border-b border-white" aria-current="page">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white transition-colors hidden sm:inline">Discovery</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-12">
         <div className="mb-8">
-          <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
-            Phase 3 – Review Analysis
-          </span>
-          <h1 className="text-3xl font-bold mt-3 mb-2">Review Analysis Dashboard</h1>
-          <p className="text-gray-500">AI summary generated from scraped review data.</p>
+          <h1 className="text-3xl font-bold mb-2">Review Analysis Dashboard</h1>
+          <p className="text-gray-500">AI summary generated from scraped user reviews and feedback signals.</p>
         </div>
+
+        {analysis && analysis.is_sample && (
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-xl text-amber-800 text-xs">
+            <strong>💡 Fallback/Sample Public Review Analysis loaded.</strong> This data is pre-generated for demo purposes to represent common review frustrations.
+          </div>
+        )}
 
         {analysis ? (
           <>
@@ -93,13 +152,22 @@ export default function DashboardPage() {
           </>
         ) : (
           <div className="bg-white border border-gray-200 rounded-2xl p-10 shadow-sm text-center">
-            <p className="text-lg font-semibold text-gray-800 mb-4">No analysis available yet.</p>
+            <p className="text-lg font-semibold text-gray-800 mb-4">No analysis generated yet</p>
             <p className="text-gray-500 mb-6">
-              Scrape reviews first on the Reviews page, then return here to see AI analysis results.
+              Run the Review Engine first to generate AI-powered themes, pain points, quotes, and opportunity areas from public user feedback.
             </p>
-            <Link href="/reviews" className="inline-block bg-purple-700 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
-              Go scrape reviews
-            </Link>
+            <div className="flex justify-center gap-4">
+              <Link href="/reviews" className="inline-block bg-purple-700 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
+                Go to Review Engine
+              </Link>
+              <button
+                onClick={loadSampleAnalysis}
+                className="bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-200 px-6 py-3 rounded-xl font-semibold transition-colors cursor-pointer"
+                type="button"
+              >
+                💡 Load Sample Analysis
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -145,6 +213,16 @@ function ThemeCard({ theme }: { theme: any }) {
         <p><strong>Pain point:</strong> {theme.pain_point}</p>
         <p><strong>Opportunity:</strong> {theme.opportunity}</p>
       </div>
+      {theme.representative_quotes && theme.representative_quotes.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <p className="text-xs font-semibold text-gray-500 mb-2">Representative Quotes:</p>
+          <ul className="list-disc list-inside text-xs text-gray-600 space-y-1">
+            {theme.representative_quotes.map((q: string, idx: number) => (
+              <li key={idx}>&ldquo;{q}&rdquo;</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,48 +2,45 @@
 
 import Link from "next/link";
 
-const SOURCES = [
+const DATA_SOURCES = [
   {
     icon: "🤖",
     name: "Google Play Store",
-    detail: "Reviews fetched via google-play-scraper (calls Google's internal API). Sorted newest-first, filtered Jan 2026 → today.",
+    detail: "User reviews fetched via google-play-scraper. Sorted newest-first, filtered for recent feedback.",
   },
   {
     icon: "🍎",
     name: "Apple App Store",
-    detail: "Reviews fetched via app-store-scraper (Apple's public RSS / API). Country: India. Sorted by most recent.",
+    detail: "Reviews fetched via app-store-scraper. Country: India. Sorted by most recent.",
   },
   {
     icon: "👽",
     name: "Reddit",
-    detail: "Posts scraped from relevant subreddits via Reddit's public JSON API. No authentication required.",
+    detail: "Posts scraped from relevant subreddits via Reddit's public JSON API.",
   },
   {
     icon: "💬",
     name: "Quora",
-    detail: "Quora snippets surfaced via DuckDuckGo search (site:quora.com gaana). Snippet text extracted with Cheerio.",
+    detail: "Snippets surfaced via DuckDuckGo search (site:quora.com gaana). Text extracted with Cheerio.",
   },
   {
     icon: "🌐",
     name: "Web / News",
-    detail: "Tech blogs, forum threads, and news articles found via DuckDuckGo. Page bodies extracted with Cheerio, falling back to search snippets.",
+    detail: "Tech blogs, forums, and news articles found via DuckDuckGo. Bodies extracted with Cheerio.",
   },
   {
     icon: "🐦",
     name: "Twitter / X",
-    detail: "Public tweets scraped from Nitter mirror instances (no Twitter API key required). Falls back gracefully if all instances are down.",
+    detail: "Public tweets scraped from Nitter mirror instances. Falls back gracefully if all instances are down.",
   },
 ];
 
 const TECH_STACK = [
-  { label: "Frontend", value: "Next.js 15 + Tailwind CSS" },
-  { label: "Backend", value: "Node.js + Express" },
-  { label: "Play scraper", value: "google-play-scraper v10" },
-  { label: "App Store", value: "app-store-scraper v0.18" },
-  { label: "Web scraper", value: "Axios + Cheerio" },
-  { label: "AI Engine", value: "Groq API" },
-  { label: "Framework", value: "Next.js App Router" },
+  { label: "Frontend", value: "Next.js 15 (App Router)" },
   { label: "Styling", value: "Tailwind CSS v3" },
+  { label: "Backend", value: "Node.js + Express" },
+  { label: "AI Engine", value: "Groq API (Llama 3.3 70B)" },
+  { label: "Scrapers", value: "google-play-scraper, app-store-scraper, Axios + Cheerio" },
   { label: "Type Safety", value: "TypeScript 5" },
 ];
 
@@ -53,19 +50,78 @@ export default function AboutPage() {
       <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow" role="banner">
         <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
         <nav className="flex gap-4 sm:gap-5 text-sm text-white/80" role="navigation" aria-label="Main navigation">
-          <Link href="/reviews" className="hover:text-white transition-colors hidden sm:inline">Reviews</Link>
-          <Link href="/dashboard" className="hover:text-white transition-colors hidden sm:inline">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white transition-colors hidden sm:inline">Discovery</Link>
+          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
           <Link href="/about" className="text-white font-semibold border-b border-white" aria-current="page">About</Link>
         </nav>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold mb-2">About & Limitations</h1>
+        <h1 className="text-3xl font-bold mb-2">About Gaana Discovery AI</h1>
         <p className="text-gray-500 mb-10">
-          Phase 5 graduation demo — data sources, privacy practices, project scope, and known limitations.
+          A product concept built to validate whether AI-powered, user-controlled music discovery can reduce repetitive listening on Indian streaming platforms.
         </p>
 
+        {/* Why this was built */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3">🎯 Why This Was Built</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-3 text-sm text-gray-700 leading-relaxed">
+            <p>
+              Gaana has millions of users and strong recommendation systems, but a significant percentage of listening still comes from repeat playlists, familiar artists, and previously discovered tracks.
+            </p>
+            <p>
+              <strong>The strategic goal</strong> is to increase meaningful music discovery and reduce repetitive listening behavior — validated through real public user feedback, not assumptions.
+            </p>
+            <p>
+              This project was built as a NextLeap graduation project to explore whether an AI-native, controllable discovery experience can address the recommendation fatigue that users report across app store reviews, Reddit, and online forums.
+            </p>
+          </div>
+        </section>
+
+        {/* Validation approach */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3">📊 Review-Led Validation Approach</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 text-sm text-gray-700 leading-relaxed space-y-3">
+            <p>
+              Instead of conducting surveys or user interviews, this project uses a <strong>review-led validation approach</strong> — leveraging publicly available user feedback signals from app store reviews, Reddit discussions, Quora threads, and tech blogs as the primary validation source.
+            </p>
+            <p>
+              The Review Engine scrapes and aggregates real user opinions from 6 public sources. The AI then performs thematic analysis to extract pain points, frustrations, and opportunity areas — producing structured insights equivalent to qualitative research outputs.
+            </p>
+            <p className="text-gray-500 italic">
+              No surveys or interviews were conducted. All validation signals come from publicly available user reviews and online feedback.
+            </p>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3">⚙️ How It Works</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">1. Review Engine (Part 1–2)</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Scrapes user reviews from Google Play Store, Apple App Store, Reddit, Quora, Twitter/X, and Web sources. All scraped text passes through a PII removal pipeline (emails, phone numbers, usernames, URLs, and IDs are masked). The cleaned reviews are then sent to Groq&apos;s Llama 3.3 70B model for AI-powered thematic analysis — extracting themes, pain points, representative quotes, sentiment distribution, target user segments, and business opportunities.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">2. Analysis Dashboard (Part 2)</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Displays the structured AI analysis output: problem statement, key themes with counts and quotes, sentiment breakdown (positive/neutral/negative), target user segment, and business opportunity. Can load either live analysis from the Review Engine or pre-generated sample data for demo purposes.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">3. Discovery Agent (Part 3–4)</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                An AI-powered music recommendation agent that lets users control discovery parameters: mood, language, activity context, freshness preference, reference artists, and what to avoid (repeated artists, mainstream hits, overplayed tracks, etc.). The agent sends structured preferences to Groq&apos;s LLM, which returns personalized track recommendations with explanations of why each track fits.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* MVP Disclaimer */}
         <section className="mb-8">
           <div className="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl p-6">
             <h2 className="text-lg font-semibold text-amber-800 mb-2">⚠️ MVP Disclaimer</h2>
@@ -77,10 +133,11 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Data Sources */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">📡 Data Sources</h2>
           <div className="space-y-3">
-            {SOURCES.map((s) => (
+            {DATA_SOURCES.map((s) => (
               <div key={s.name} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-sm transition-shadow">
                 <span className="text-2xl mt-0.5" aria-hidden="true">{s.icon}</span>
                 <div>
@@ -92,8 +149,9 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Privacy */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">🔒 Privacy & Data Protection</h2>
+          <h2 className="text-xl font-semibold mb-4">🔒 Privacy &amp; Data Protection</h2>
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -119,47 +177,42 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Future Scope */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-3">🎯 Project Scope</h2>
+          <h2 className="text-xl font-semibold mb-3">🚀 Future Scope &amp; Validation Notes</h2>
           <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             <div className="flex gap-3">
-              <span className="text-green-500 mt-0.5 shrink-0">✓</span>
+              <span className="text-gray-400 mt-0.5 shrink-0">→</span>
               <div>
-                <p className="text-sm font-semibold text-gray-800">Learning & Demonstration</p>
-                <p className="text-sm text-gray-600">Built as an educational project to demonstrate AI-powered music discovery using open-source tools.</p>
+                <p className="text-sm font-semibold text-gray-800">User Interviews &amp; Surveys</p>
+                <p className="text-sm text-gray-600">Conduct direct user research to validate review-derived insights and test Discovery Agent prototypes with real listeners.</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-green-500 mt-0.5 shrink-0">✓</span>
+              <span className="text-gray-400 mt-0.5 shrink-0">→</span>
               <div>
-                <p className="text-sm font-semibold text-gray-800">Multi-Source Scraping</p>
-                <p className="text-sm text-gray-600">Aggregates feedback from 6 public sources for comprehensive analysis.</p>
+                <p className="text-sm font-semibold text-gray-800">Full Catalog Integration</p>
+                <p className="text-sm text-gray-600">Connect to Gaana&apos;s internal catalog and playback APIs for real track results, audio previews, and one-tap play.</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-amber-500 mt-0.5 shrink-0">⚠</span>
+              <span className="text-gray-400 mt-0.5 shrink-0">→</span>
               <div>
-                <p className="text-sm font-semibold text-gray-800">Not Production-Ready</p>
-                <p className="text-sm text-gray-600">This is a demonstration MVP. Rate limits, data completeness, and error handling are not production-grade.</p>
+                <p className="text-sm font-semibold text-gray-800">Collaborative Filtering &amp; Listening History</p>
+                <p className="text-sm text-gray-600">Layer user profiles and collaborative filtering on top of LLM-based discovery for truly personalized results.</p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-amber-500 mt-0.5 shrink-0">⚠</span>
+              <span className="text-gray-400 mt-0.5 shrink-0">→</span>
               <div>
-                <p className="text-sm font-semibold text-gray-800">Catalog Limitations</p>
-                <p className="text-sm text-gray-600">Recommendations are based on public metadata only — not Gaana&apos;s internal catalog or proprietary data.</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <span className="text-amber-500 mt-0.5 shrink-0">⚠</span>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Personalization Limits</p>
-                <p className="text-sm text-gray-600">Personalization is rule-based + LLM inference. No user profiles, listening history, or collaborative filtering.</p>
+                <p className="text-sm font-semibold text-gray-800">A/B Testing &amp; Metrics</p>
+                <p className="text-sm text-gray-600">Measure discovery rate, repeat-play reduction, and session length improvements through controlled experiments.</p>
               </div>
             </div>
           </div>
         </section>
 
+        {/* Known Limitations */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-3">⚠️ Known Limitations</h2>
           <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -170,38 +223,25 @@ export default function AboutPage() {
               </li>
               <li className="flex gap-2">
                 <span className="text-orange-500 mt-0.5 shrink-0">•</span>
-                <span>Quora and Web/News use search snippet text; full article bodies are attempted but may be blocked by paywalls.</span>
+                <span>Quora and Web/News use search snippet text; full article bodies may be blocked by paywalls.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-orange-500 mt-0.5 shrink-0">•</span>
-                <span>Google Play and App Store may rate-limit after many consecutive requests — delays are built in but not foolproof.</span>
+                <span>Google Play and App Store may rate-limit after many consecutive requests.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-orange-500 mt-0.5 shrink-0">•</span>
-                <span>Reddit&apos;s public JSON API caps results at ~25 per page; more data requires OAuth (not implemented here).</span>
+                <span>Recommendations are based on public metadata only — not Gaana&apos;s internal catalog or proprietary data.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-orange-500 mt-0.5 shrink-0">•</span>
-                <span>Non-English reviews (Hindi, Tamil, etc.) are captured but not translated — AI analysis works best on English text.</span>
+                <span>Personalization is rule-based + LLM inference. No user profiles, listening history, or collaborative filtering.</span>
               </li>
             </ul>
           </div>
         </section>
 
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-3">📬 Contact & Support</h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <p className="text-sm text-gray-600 mb-4">
-              This project was built as a graduation demo. For questions or feedback about the architecture or implementation:
-            </p>
-            <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-              <li>Review the <strong>Phase 5 frontend</strong> and <strong>backend</strong> repositories</li>
-              <li>Check the <strong>README</strong> in each phase folder for setup instructions</li>
-              <li>Open an issue in the project repository for bugs or feature requests</li>
-            </ul>
-          </div>
-        </section>
-
+        {/* Tech Stack */}
         <section className="mb-10">
           <h2 className="text-xl font-semibold mb-3">🛠 Tech Stack</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

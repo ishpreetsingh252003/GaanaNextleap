@@ -8,13 +8,11 @@ type Status = "checking" | "ok" | "error";
 
 export default function Home() {
   const [status, setStatus] = useState<Status>("checking");
-  const [backendVersion, setBackendVersion] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   const checkBackend = useCallback(async () => {
     try {
-      const data = await checkHealth();
-      setBackendVersion(String(data.phase));
+      await checkHealth();
       setStatus("ok");
     } catch (err) {
       setStatus("error");
@@ -35,22 +33,22 @@ export default function Home() {
   const badge = {
     checking: (
       <span className="inline-flex items-center gap-2 text-yellow-300 animate-pulse">
-        <span className="w-2 h-2 bg-yellow-300 rounded-full animate-pulse-slow" />
-        Checking backend…
+        <span className="w-2 h-2 bg-yellow-300 rounded-full" />
+        Checking backend status…
       </span>
     ),
     ok: (
       <span className="inline-flex items-center gap-2 text-green-400">
         <span className="w-2 h-2 bg-green-400 rounded-full" />
-        Backend connected — Phase {backendVersion ?? "?"} ready
+        Backend API Connected
       </span>
     ),
     error: (
       <span className="inline-flex items-center gap-2 text-red-400">
         <span className="w-2 h-2 bg-red-400 rounded-full" />
-        Backend offline — run `npm run dev` in phase5/backend
+        Backend API Offline
         {retryCount >= 2 && (
-          <span className="text-red-300 text-xs"> (auto-retry attempted)</span>
+          <span className="text-red-300 text-xs"> (retry failed)</span>
         )}
       </span>
     ),
@@ -63,93 +61,93 @@ export default function Home() {
           🎵 Gaana Discovery AI
         </Link>
         <div className="flex gap-4 sm:gap-6">
-          <Link href="/reviews" className="hover:text-white transition-colors">Reviews</Link>
+          <Link href="/" className="text-white font-semibold">Home</Link>
+          <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white transition-colors">Discovery</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </div>
       </nav>
 
       <main className="container mx-auto px-4 py-16 text-center">
-        <div className="inline-flex items-center gap-2 bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4 backdrop-blur-sm">
-          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-          Phase 5 — Graduation Demo
-        </div>
-
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 tracking-tight">
           Gaana Discovery AI
         </h1>
-        <p className="text-lg sm:text-xl mb-8 max-w-2xl mx-auto text-white/90 leading-relaxed">
-          Scrapes Gaana user feedback from <strong>6 sources</strong>, analyzes it with AI,
-          and delivers personalized music recommendations tuned to your mood and preferences.
+        <p className="text-lg sm:text-xl mb-4 max-w-2xl mx-auto text-white/95 leading-relaxed font-medium">
+          Review-led AI music discovery for fresh but relevant listening
         </p>
+        
+        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6 max-w-2xl mx-auto mb-8 text-left">
+          <h2 className="text-xs uppercase tracking-wider font-semibold text-white/70 mb-2">Problem Statement</h2>
+          <p className="text-sm leading-relaxed text-white/90">
+            “Young Indian music listeners often fall back to familiar playlists, artists, and tracks because discovering fresh but still relevant music takes effort.”
+          </p>
+        </div>
 
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
+        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6 max-w-2xl mx-auto mb-8 text-left">
+          <h2 className="text-xs uppercase tracking-wider font-semibold text-white/70 mb-3">Product Flow</h2>
+          <div className="grid grid-cols-4 gap-2 text-center text-xs font-semibold">
+            <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+              <span className="block text-lg mb-1">📡</span>
+              Public Reviews
+            </div>
+            <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+              <span className="block text-lg mb-1">🧠</span>
+              AI Review Analysis
+            </div>
+            <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+              <span className="block text-lg mb-1">⚠️</span>
+              Discovery Pain Points
+            </div>
+            <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+              <span className="block text-lg mb-1">🤖</span>
+              AI Discovery Agent
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-4 justify-center mb-10">
+          <Link
+            href="/reviews"
+            className="bg-white text-purple-700 hover:bg-gray-100 px-6 sm:px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            Analyze Reviews
+          </Link>
+          <Link
+            href="/discovery"
+            className="bg-green-500 hover:bg-green-400 text-white px-6 sm:px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            Try Discovery Agent
+          </Link>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6 max-w-2xl mx-auto mb-10 text-left">
+          <h2 className="text-xs uppercase tracking-wider font-semibold text-white/70 mb-2">Review-led Validation Approach</h2>
+          <p className="text-xs leading-relaxed text-white/80">
+            Because direct interviews were not included in this version, the opportunity was validated through public user feedback analysis. Reviews and online discussions were treated as real usage signals to identify repeated discovery pain points.
+          </p>
+        </div>
+
+        <div className="flex justify-center gap-2 flex-wrap mb-10">
           {[
             { icon: "🤖", label: "Google Play" },
             { icon: "🍎", label: "App Store" },
             { icon: "👽", label: "Reddit" },
             { icon: "💬", label: "Quora" },
-            { icon: "🌐", label: "Web / News" },
+            { icon: "🌐", label: "Web & News" },
             { icon: "🐦", label: "Twitter / X" },
           ].map((s) => (
             <span
               key={s.label}
-              className="bg-white/20 border border-white/30 px-3 py-1.5 rounded-full text-sm font-medium backdrop-blur-sm hover:bg-white/30 transition-colors"
+              className="bg-white/10 border border-white/25 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm text-white/90"
             >
               {s.icon} {s.label}
             </span>
           ))}
         </div>
 
-        <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6 max-w-lg mx-auto mb-10 text-sm">
-          <p className="text-white/70 mb-1 text-xs uppercase tracking-wider font-semibold">Backend Status</p>
-          <p className="text-base">{badge[status]}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-4 justify-center mb-14">
-          <Link
-            href="/reviews"
-            className="bg-white text-purple-700 hover:bg-gray-100 px-6 sm:px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-          >
-            Start Scraping Reviews
-          </Link>
-          <Link
-            href="/discovery"
-            className="bg-green-500 hover:bg-green-400 text-white px-6 sm:px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-          >
-            Try Discovery Agent
-          </Link>
-        </div>
-
-        <div className="max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { phase: "Phase 1", label: "Foundation", done: true, active: false },
-            { phase: "Phase 2", label: "Scraping", done: true, active: false },
-            { phase: "Phase 3", label: "AI Analysis", done: true, active: false },
-            { phase: "Phase 4", label: "Discovery", done: true, active: false },
-            { phase: "Phase 5", label: "Graduation", done: true, active: true },
-          ].map((p, idx) => (
-            <div
-              key={p.phase}
-              className={`rounded-xl p-4 border transition-all ${
-                p.active
-                  ? "bg-white/25 border-white/50 shadow-lg scale-105"
-                  : p.done
-                    ? "bg-white/15 border-white/30"
-                    : "bg-white/5 border-white/10"
-              }`}
-            >
-              <p className="text-2xl mb-1">{p.done ? "✅" : "🔜"}</p>
-              <p className="text-xs font-bold">{p.phase}</p>
-              <p className="text-xs text-white/70">{p.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-14 inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-xs text-white/80 backdrop-blur-sm">
-          <span className="text-green-400">●</span>
-          Production Ready <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 font-semibold">v5.0.0</span>
+        <div className="bg-black/10 backdrop-blur border border-white/10 rounded-full px-6 py-2 max-w-xs mx-auto text-xs text-white/70">
+          {badge[status]}
         </div>
       </main>
     </div>
