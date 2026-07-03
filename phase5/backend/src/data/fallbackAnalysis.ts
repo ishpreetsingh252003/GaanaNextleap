@@ -12,22 +12,24 @@
 export const FALLBACK_ANALYSIS = {
   summary:
     "Users consistently report frustration with repetitive recommendation loops, mainstream popularity bias, and poor context-awareness in music discovery. There is a clear, unmet demand for fresh regional/indie tracks, activity-specific playlists, and user-controlled discovery parameters.",
-  total_reviews_analyzed: 8,
-  date_range: "2026-01-01 to 2026-07-02",
+  total_reviews_analyzed: 120,
+  date_range: "2026-01-01 to 2026-07-03",
   is_fallback: true,
   themes: [
     {
       theme_name: "Repetitive Recommendations & Playlist Fatigue",
-      count: 5,
+      count: 32,
       description:
         "Users report being served the same songs and artists repeatedly, leading to listening loop frustration and reduced engagement.",
       pain_point:
         "The recommendation feed feels stale. Users stop exploring new music because the same tracks keep appearing regardless of how much they skip or rate.",
       representative_quotes: [
-        "The same songs keep coming in recommendations again and again.",
+        "The same songs keep coming in my recommendations even when I skip them.",
+        "My daily mixes feel too similar every week.",
         "I have been listening to the same 20 songs for weeks — the app doesn't show me anything new.",
         "I keep hearing the same playlists. Would love fresh recommendations that actually feel different.",
         "Every time I open the app, same artists appear. It's like the algorithm is stuck.",
+        "I usually return to my old playlist because discovery feels random.",
         "I skip most recommendations now because I already know what's coming next.",
       ],
       opportunity:
@@ -35,7 +37,7 @@ export const FALLBACK_ANALYSIS = {
     },
     {
       theme_name: "Mainstream & Viral Dominance",
-      count: 4,
+      count: 18,
       description:
         "The recommendation system over-indexes on popularity signals, surfacing trending/viral hits at the expense of niche, indie, or regional artists.",
       pain_point:
@@ -45,13 +47,14 @@ export const FALLBACK_ANALYSIS = {
         "Everything recommended is mainstream and viral. What if I want regional music that is niche?",
         "The algorithm forces hits upon us — it doesn't care what we actually want to hear.",
         "I try to find underrated indie or regional music but it constantly pushes mainstream Bollywood on my feed.",
+        "Fresh songs are hard to find unless I already know the artist.",
       ],
       opportunity:
         "Introduce a 'Freshness' dial that actively reduces mainstream content in favour of emerging artists and regional genres when selected.",
     },
     {
       theme_name: "Mood & Context Mismatch",
-      count: 3,
+      count: 22,
       description:
         "Users select mood or activity tags but receive recommendations that don't match their actual listening context.",
       pain_point:
@@ -60,13 +63,15 @@ export const FALLBACK_ANALYSIS = {
         "The app does not understand my mood. Gym, travel, and chill music all feel mixed.",
         "I select Chill Hindi but it starts playing upbeat bhangra. Recommendation engine doesn't understand context.",
         "I want Gym music that matches my pace, not random Bollywood from the charts.",
+        "Travel playlists are okay, but they do not change much.",
+        "Recommendations not adapting to mood.",
       ],
       opportunity:
         "Implement multi-parameter discovery that combines mood + activity + language + freshness as compound filters, not just single-signal recommendations.",
     },
     {
       theme_name: "Regional & Indie Discovery Gaps",
-      count: 3,
+      count: 19,
       description:
         "Regional language listeners and indie music fans feel under-served. Discovery surfaces Hindi/mainstream content even for users who primarily consume Tamil, Telugu, Bhojpuri, or indie-label tracks.",
       pain_point:
@@ -75,13 +80,15 @@ export const FALLBACK_ANALYSIS = {
         "Regional songs are there, but discovery is not easy.",
         "I usually go back to my old playlist because finding fresh Tamil songs takes effort.",
         "I love Bhojpuri folk music but the app always recommends mainstream Hindi. I have to search manually every time.",
+        "I want more regional songs, but the app pushes popular Bollywood tracks first.",
+        "Hindi romantic recommendations keep repeating the same artists.",
       ],
       opportunity:
         "Build language-first discovery flows where users can pin a regional language preference and receive active suggestions of emerging artists in that language.",
     },
     {
-      theme_name: "Lack of User Control & Explainability",
-      count: 2,
+      theme_name: "Search & Discovery Effort",
+      count: 15,
       description:
         "Users feel passive recipients of recommendations with no way to understand why a song was suggested or to meaningfully influence future suggestions.",
       pain_point:
@@ -89,6 +96,8 @@ export const FALLBACK_ANALYSIS = {
       representative_quotes: [
         "I usually go back to my old playlist because finding fresh songs takes effort.",
         "I can't tell the app I'm tired of a certain artist — I just have to manually skip forever.",
+        "Gaana has a lot of music, but finding something new that matches my mood takes time.",
+        "Sometimes I want familiar songs, but not the exact same songs again.",
       ],
       opportunity:
         "Add explicit controls: avoid artists, set freshness, provide reference input — giving users agency over discovery rather than passive consumption.",

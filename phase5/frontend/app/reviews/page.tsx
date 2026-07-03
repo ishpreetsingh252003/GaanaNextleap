@@ -198,7 +198,7 @@ export default function ReviewsPage() {
               className="text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
               💡 Load Fallback Public Review Data
             </button>
-            <span className="text-xs text-white/40">Live fetching can depend on public source availability. Fallback data keeps the demo flow reliable.</span>
+            <span className="text-xs text-white/40 max-w-xs">Fallback data contains 100+ public-review-style entries across multiple sources to keep the demo reliable when live public sources return limited results.</span>
           </div>
         </section>
 
@@ -217,8 +217,8 @@ export default function ReviewsPage() {
           <>
             {analysis.is_fallback && (
               <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 mb-6 rounded-r-xl text-amber-300 text-xs backdrop-blur-sm">
-                <strong>💡 Sample fallback public review-style data loaded.</strong> This pre-generated analysis is shown for demo reliability and represents common public review frustrations.
-                <br />These quotes are representative of public review-style feedback used for demo fallback — not individual user records.
+                <strong>💡 Sample analysis generated from fallback public-review-style data for demo reliability.</strong>
+                <br />This pre-generated analysis is shown for demo reliability and represents common public review frustrations.
               </div>
             )}
 
