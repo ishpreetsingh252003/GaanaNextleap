@@ -141,32 +141,35 @@ export default function ReviewsPage() {
   const paged = filteredReviews.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow">
-        <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
-        <nav className="flex gap-4 sm:gap-5 text-sm text-white/80">
-          <Link href="/" className="hover:text-white">Home</Link>
-          <Link href="/reviews" className="text-white font-semibold border-b border-white">Review Engine</Link>
-          <Link href="/dashboard" className="hover:text-white">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white">Discovery Agent</Link>
-          <Link href="/about" className="hover:text-white">About</Link>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <Link href="/" className="font-bold text-lg flex items-center gap-2">
+          <span className="text-2xl">🎵</span>
+          <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
+        </Link>
+        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
+          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/reviews" className="text-white font-semibold border-b-2 border-red-500">Review Engine</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
+          <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-1">Review Engine</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-white/60 text-sm">
             Scrapes Gaana feedback from Google Play, App Store, Reddit, Quora, Web news, and Twitter — filtered to <strong>Jan 2026 → today</strong>. Runs AI theme analysis on the results.
           </p>
         </div>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800">Select Sources</h2>
+        <section className="bg-white/5 border border-white/10 rounded-3xl p-6 mb-6 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-semibold text-white">Select Sources</h2>
             <div className="flex gap-3 text-xs">
-              <button onClick={() => setSelected(sources.map((s) => s.id))} className="text-purple-600 hover:underline">Select all</button>
-              <button onClick={() => setSelected([])} className="text-gray-400 hover:underline">Clear</button>
+              <button onClick={() => setSelected(sources.map((s) => s.id))} className="text-red-400 hover:text-red-300 transition-colors">Select all</button>
+              <button onClick={() => setSelected([])} className="text-white/40 hover:text-white/60 transition-colors">Clear</button>
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -174,17 +177,17 @@ export default function ReviewsPage() {
               const isOn = selected.includes(src.id);
               return (
                 <button key={src.id} onClick={() => toggleSource(src.id)} aria-pressed={isOn}
-                  className={`flex items-center gap-2 border rounded-xl px-4 py-3 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-purple-400 ${isOn ? SOURCE_COLORS[src.id] + " shadow-sm" : "bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300"}`}>
-                  <span className="text-xl">{SOURCE_ICONS[src.id]}</span>
-                  <span>{src.label}</span>
-                  {isOn && <span className="ml-auto text-xs">✓</span>}
+                  className={`flex items-center gap-3 border rounded-2xl px-4 py-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${isOn ? "bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-500/50 text-white shadow-lg shadow-red-500/10" : "bg-white/5 border-white/10 text-white/50 hover:border-white/20 hover:bg-white/10"}`}>
+                  <span className="text-2xl">{SOURCE_ICONS[src.id]}</span>
+                  <span className="text-left">{src.label}</span>
+                  {isOn && <span className="ml-auto text-xs bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center">✓</span>}
                 </button>
               );
             })}
           </div>
 
           <button onClick={handleScrape} disabled={status === "loading" || selected.length === 0}
-            className="mt-5 w-full bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400">
+            className="mt-6 w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500">
             {status === "loading"
               ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
               : `🔍 Scrape & Analyse ${selected.length} Source${selected.length !== 1 ? "s" : ""}`}
@@ -192,19 +195,19 @@ export default function ReviewsPage() {
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <button onClick={handleFallbackLoad} disabled={status === "loading"}
-              className="text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 font-semibold px-4 py-2 rounded-xl border border-purple-200 transition-colors disabled:opacity-40">
+              className="text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
               💡 Load Fallback Public Review Data
             </button>
-            <span className="text-xs text-gray-400">Use this if live scraping fails or for a quick demo</span>
+            <span className="text-xs text-white/40">Live fetching can depend on public source availability. Fallback data keeps the demo flow reliable.</span>
           </div>
         </section>
 
         {status === "error" && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6 text-sm" role="alert">
-            <p className="font-semibold text-red-700 mb-2">⚠️ Scraping or analysis encountered an issue</p>
-            <p className="text-red-600 mb-3">{errorMsg}</p>
-            <p className="text-gray-500 text-xs mb-3">Live fetching may fail due to public source restrictions or network issues. Use fallback review data to continue.</p>
-            <button onClick={handleFallbackLoad} className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-4 py-2 rounded-lg text-xs">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 mb-6 text-sm backdrop-blur-sm" role="alert">
+            <p className="font-semibold text-red-400 mb-2">⚠️ Scraping or analysis encountered an issue</p>
+            <p className="text-red-300 mb-3">{errorMsg}</p>
+            <p className="text-white/50 text-xs mb-3">Live fetching may fail due to public source restrictions or network issues. Use fallback review data to continue.</p>
+            <button onClick={handleFallbackLoad} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-lg text-xs">
               💡 Load Fallback Public Reviews & Run Analysis
             </button>
           </div>
@@ -213,24 +216,24 @@ export default function ReviewsPage() {
         {status === "success" && result && analysis && (
           <>
             {analysis.is_fallback && (
-              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-xl text-amber-800 text-xs">
+              <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 mb-6 rounded-r-xl text-amber-300 text-xs backdrop-blur-sm">
                 <strong>💡 Sample fallback public review-style data loaded.</strong> This pre-generated analysis is shown for demo reliability and represents common public review frustrations.
                 <br />These quotes are representative of public review-style feedback used for demo fallback — not individual user records.
               </div>
             )}
 
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Reviews" value={result.total_reviews.toString()} color="purple" />
-              <StatCard label="Sources" value={Object.keys(result.sources_summary).length.toString()} color="blue" />
-              <StatCard label="Themes Found" value={(analysis.themes?.length ?? 0).toString()} color="green" />
+              <StatCard label="Reviews" value={result.total_reviews.toString()} color="red" />
+              <StatCard label="Sources" value={Object.keys(result.sources_summary).length.toString()} color="pink" />
+              <StatCard label="Themes Found" value={(analysis.themes?.length ?? 0).toString()} color="purple" />
               <StatCard label="Negative Sentiment" value={`${analysis.sentiment_summary?.negative ?? 0}%`} color="orange" />
             </section>
 
-            <section className="bg-white border border-gray-200 rounded-2xl p-5 mb-6 shadow-sm">
-              <h2 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Sources</h2>
+            <section className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 backdrop-blur-sm">
+              <h2 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Sources</h2>
               <div className="flex flex-wrap gap-2">
                 {(Object.entries(result.sources_summary) as [ReviewSource, number][]).map(([src, count]) => (
-                  <span key={src} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium ${SOURCE_COLORS[src]}`}>
+                  <span key={src} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium bg-white/10 border-white/20 text-white/80`}>
                     {SOURCE_ICONS[src]} {sourceLabel(src)}: <strong>{count}</strong>
                   </span>
                 ))}
@@ -240,37 +243,37 @@ export default function ReviewsPage() {
             <section className="flex flex-col md:flex-row gap-3 mb-5">
               <input type="text" placeholder="Search review text…" value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 backdrop-blur-sm" />
               <select value={filterSource} onChange={(e) => { setFilterSource(e.target.value as ReviewSource | "all"); setCurrentPage(1); }}
-                className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
-                <option value="all">All sources</option>
+                className="bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500 backdrop-blur-sm">
+                <option value="all" className="bg-gray-900">All sources</option>
                 {(Object.keys(result.sources_summary) as ReviewSource[]).map((src) => (
-                  <option key={src} value={src}>{sourceLabel(src)}</option>
+                  <option key={src} value={src} className="bg-gray-900">{sourceLabel(src)}</option>
                 ))}
               </select>
-              <span className="self-center text-sm text-gray-400">{filteredReviews.length} review{filteredReviews.length !== 1 ? "s" : ""}</span>
+              <span className="self-center text-sm text-white/50">{filteredReviews.length} review{filteredReviews.length !== 1 ? "s" : ""}</span>
             </section>
 
             <section className="space-y-3 mb-6">
               {paged.length === 0
-                ? <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400">No reviews match your filter.</div>
+                ? <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-white/40 backdrop-blur-sm">No reviews match your filter.</div>
                 : paged.map((r) => <ReviewCard key={r.id} review={r} />)}
             </section>
 
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mb-8">
                 <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-100">← Prev</button>
-                <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
+                  className="px-4 py-2 rounded-xl border border-white/20 text-sm text-white/80 disabled:opacity-40 hover:bg-white/10 transition-colors">← Prev</button>
+                <span className="text-sm text-white/50">Page {currentPage} of {totalPages}</span>
                 <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-40 hover:bg-gray-100">Next →</button>
+                  className="px-4 py-2 rounded-xl border border-white/20 text-sm text-white/80 disabled:opacity-40 hover:bg-white/10 transition-colors">Next →</button>
               </div>
             )}
 
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white text-center">
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-6 text-white text-center shadow-lg shadow-red-500/25">
               <p className="text-lg font-semibold mb-1">Analysis ready — view full insights</p>
               <p className="text-sm text-white/80 mb-4">Themes, pain points, sentiment, problem statement, and opportunity areas are waiting on the dashboard.</p>
-              <Link href="/dashboard" className="inline-block bg-white text-purple-700 font-bold px-6 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+              <Link href="/dashboard" className="inline-block bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                 Go to Analysis Dashboard →
               </Link>
             </div>
@@ -283,13 +286,13 @@ export default function ReviewsPage() {
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   const c: Record<string, string> = {
-    purple: "border-purple-200 bg-purple-50 text-purple-700",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    green: "border-green-200 bg-green-50 text-green-700",
-    orange: "border-orange-200 bg-orange-50 text-orange-700",
+    red: "border-red-500/30 bg-red-500/10 text-red-400",
+    pink: "border-pink-500/30 bg-pink-500/10 text-pink-400",
+    purple: "border-purple-500/30 bg-purple-500/10 text-purple-400",
+    orange: "border-orange-500/30 bg-orange-500/10 text-orange-400",
   };
   return (
-    <div className={`border rounded-2xl p-4 ${c[color]}`}>
+    <div className={`border rounded-2xl p-4 backdrop-blur-sm ${c[color]}`}>
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-xs mt-0.5 opacity-80">{label}</p>
     </div>
@@ -301,34 +304,34 @@ function ReviewCard({ review }: { review: Review }) {
   const MAX = 180;
   const isLong = review.text.length > MAX;
   return (
-    <article className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+    <article className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${SOURCE_COLORS[review.source]}`}>
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border bg-white/10 border-white/20 text-white/80`}>
             {SOURCE_ICONS[review.source]} {sourceLabel(review.source)}
           </span>
           {review.rating !== null && (
-            <span className="text-xs text-yellow-600 font-medium">
+            <span className="text-xs text-yellow-400 font-medium">
               {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
             </span>
           )}
         </div>
-        <time className="text-xs text-gray-400 shrink-0" dateTime={review.date}>
+        <time className="text-xs text-white/40 shrink-0" dateTime={review.date}>
           {new Date(review.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
         </time>
       </div>
-      {review.title && <p className="font-semibold text-sm text-gray-800 mb-1">{review.title}</p>}
-      <p className="text-sm text-gray-600 leading-relaxed">
+      {review.title && <p className="font-semibold text-sm text-white mb-1">{review.title}</p>}
+      <p className="text-sm text-white/70 leading-relaxed">
         {expanded || !isLong ? review.text : review.text.slice(0, MAX) + "…"}
       </p>
       {isLong && (
-        <button onClick={() => setExpanded(!expanded)} className="text-xs text-purple-600 mt-1 hover:underline">
+        <button onClick={() => setExpanded(!expanded)} className="text-xs text-red-400 mt-1 hover:text-red-300 transition-colors">
           {expanded ? "Show less" : "Read more"}
         </button>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-gray-400">by {review.author}</span>
-        {review.url && <a href={review.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">Source ↗</a>}
+        <span className="text-xs text-white/40">by {review.author}</span>
+        {review.url && <a href={review.url} target="_blank" rel="noopener noreferrer" className="text-xs text-red-400 hover:text-red-300 transition-colors">Source ↗</a>}
       </div>
     </article>
   );

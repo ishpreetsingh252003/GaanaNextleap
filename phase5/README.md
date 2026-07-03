@@ -133,7 +133,7 @@ Frontend starts on `http://localhost:3000`.
 |----------|----------|---------|-------------|
 | `GROQ_API_KEY` | **Yes** | — | Groq API key for AI analysis and recommendations |
 | `PORT` | No | `3001` | Backend server port |
-| `FRONTEND_URL` | No | `http://localhost:3000,http://localhost:3002` | Comma-separated allowed CORS origins |
+| `FRONTEND_URL` | No | `http://localhost:3000,http://localhost:3002` | Comma-separated allowed CORS origins (production: `https://gaana-nextleap.vercel.app`) |
 | `NODE_ENV` | No | `development` | Set to `production` for deployed environments |
 | `GOOGLE_PLAY_APP_ID` | No | `com.gaana` | Google Play app ID for scraping |
 | `APP_STORE_APP_ID` | No | `1491726408` | Apple App Store numeric ID |
@@ -144,12 +144,20 @@ Frontend starts on `http://localhost:3000`.
 | `SCRAPE_DELAY_MS` | No | `1500` | Delay between scraper requests (ms) |
 | `MAX_PAGES_PER_SOURCE` | No | `5` | Maximum pages to crawl per source |
 
+**Production Note:**
+- Set `FRONTEND_URL` to `https://gaana-nextleap.vercel.app` for production CORS
+- Set `NODE_ENV=production`
+
 ### Frontend (`phase5/frontend/.env.local`)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `NEXT_PUBLIC_BACKEND_URL` | **Yes** | `http://localhost:3001` | Backend API base URL |
+| `NEXT_PUBLIC_BACKEND_URL` | **Yes** | `http://localhost:3001` | Backend API base URL (production: deployed backend URL) |
 | `NEXT_PUBLIC_ENVIRONMENT` | No | `development` | Environment tag for diagnostics |
+
+**Production Note:**
+- Set `NEXT_PUBLIC_BACKEND_URL` to your deployed backend URL (e.g., `https://your-backend.onrender.com`)
+- After updating environment variables, redeploy Vercel to apply changes
 
 ## API Endpoints
 

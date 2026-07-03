@@ -129,33 +129,50 @@ export default function DiscoveryPage() {
   const isFormReady = mood && language && activity && freshness;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-purple-700 to-blue-600 text-white px-6 py-4 flex items-center justify-between shadow">
-        <Link href="/" className="font-bold text-lg">🎵 Gaana Discovery AI</Link>
-        <nav className="flex gap-4 sm:gap-5 text-sm text-white/80">
-          <Link href="/" className="hover:text-white">Home</Link>
-          <Link href="/reviews" className="hover:text-white">Review Engine</Link>
-          <Link href="/dashboard" className="hover:text-white">Dashboard</Link>
-          <Link href="/discovery" className="text-white font-semibold border-b border-white">Discovery Agent</Link>
-          <Link href="/about" className="hover:text-white">About</Link>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <Link href="/" className="font-bold text-lg flex items-center gap-2">
+          <span className="text-2xl">🎵</span>
+          <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
+        </Link>
+        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
+          <Link href="/" className="hover:text-white transition-colors">Home</Link>
+          <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Discovery Agent</Link>
+          <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Music Discovery Agent</h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-white/60 text-sm">
             Tell us your mood, language, and activity — get 8–10 fresh but relevant Indian music picks with specific reasoning for each.
           </p>
         </div>
 
+        {/* Big search/prompt bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Punjabi gym songs like Sidhu Moose Wala but not the same viral tracks"
+              className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50">🔍</span>
+          </div>
+        </div>
+
         {/* Demo examples */}
-        <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 mb-6">
-          <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2">Try a demo query</p>
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 backdrop-blur-sm">
+          <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-3">Try a demo query</p>
           <div className="flex flex-wrap gap-2">
             {DEMO_EXAMPLES.map((ex) => (
               <button key={ex} onClick={() => prefillDemo(ex)}
-                className="text-xs bg-white border border-purple-200 text-purple-700 px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors">
+                className="text-xs bg-white/10 border border-white/20 text-white/80 px-3 py-1.5 rounded-full hover:bg-white/20 transition-colors">
                 {ex}
               </button>
             ))}
@@ -168,7 +185,7 @@ export default function DiscoveryPage() {
             <div className="flex flex-wrap gap-2">
               {MOODS.map((m) => (
                 <button key={m} onClick={() => setMood(m)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${mood === m ? "bg-purple-700 text-white border-purple-700" : "bg-white border-gray-200 text-gray-600 hover:border-purple-300"}`}>
+                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${mood === m ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
                   {m}
                 </button>
               ))}
@@ -179,7 +196,7 @@ export default function DiscoveryPage() {
             <div className="flex flex-wrap gap-2">
               {LANGUAGES.map((l) => (
                 <button key={l} onClick={() => setLanguage(l)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${language === l ? "bg-purple-700 text-white border-purple-700" : "bg-white border-gray-200 text-gray-600 hover:border-purple-300"}`}>
+                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${language === l ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
                   {l}
                 </button>
               ))}
@@ -190,7 +207,7 @@ export default function DiscoveryPage() {
             <div className="flex flex-wrap gap-2">
               {ACTIVITIES.map((a) => (
                 <button key={a} onClick={() => setActivity(a)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${activity === a ? "bg-purple-700 text-white border-purple-700" : "bg-white border-gray-200 text-gray-600 hover:border-purple-300"}`}>
+                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${activity === a ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
                   {a}
                 </button>
               ))}
@@ -198,17 +215,15 @@ export default function DiscoveryPage() {
           </FormCard>
 
           <FormCard label="Freshness" required>
-            <div className="space-y-2">
+            <div className="flex gap-2">
               {FRESHNESS.map((f) => (
-                <label key={f} className={`flex items-start gap-3 cursor-pointer p-2.5 rounded-xl border transition-all ${freshness === f ? "border-purple-300 bg-purple-50" : "border-gray-200 bg-white hover:border-purple-200"}`}>
-                  <input type="radio" name="freshness" value={f} checked={freshness === f} onChange={() => setFreshness(f)} className="mt-0.5 accent-purple-600" />
-                  <div>
-                    <span className="font-medium text-sm text-gray-800">{f}</span>
-                    <p className="text-xs text-gray-500 mt-0.5">{FRESHNESS_DESC[f]}</p>
-                  </div>
-                </label>
+                <button key={f} onClick={() => setFreshness(f)} type="button"
+                  className={`flex-1 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${freshness === f ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
+                  {f}
+                </button>
               ))}
             </div>
+            <p className="text-xs text-white/40 mt-2">{FRESHNESS_DESC[freshness] || "Select freshness level"}</p>
           </FormCard>
         </div>
 
@@ -216,44 +231,43 @@ export default function DiscoveryPage() {
           <FormCard label="Reference artist or song (optional)">
             <input type="text" value={reference} onChange={(e) => setReference(e.target.value)}
               placeholder="e.g. Sidhu Moose Wala, Arijit Singh, 'Kesariya'"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
-            <p className="text-xs text-gray-400 mt-1.5">We'll find similar vibe — not the exact same songs.</p>
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 backdrop-blur-sm" />
+            <p className="text-xs text-white/40 mt-1.5">We'll find similar vibe — not the exact same songs.</p>
           </FormCard>
 
           <FormCard label="Avoid preferences">
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               {AVOID_OPTIONS.map((opt) => (
-                <label key={opt.value} className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 hover:text-gray-900">
-                  <input type="checkbox" checked={avoidList.includes(opt.value)} onChange={() => toggleAvoid(opt.value)}
-                    className="w-4 h-4 rounded border-gray-300 accent-purple-600" />
+                <button key={opt.value} onClick={() => toggleAvoid(opt.value)} type="button"
+                  className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${avoidList.includes(opt.value) ? "bg-red-500/20 border-red-500/50 text-red-400" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
                   {opt.label}
-                </label>
+                </button>
               ))}
             </div>
           </FormCard>
         </div>
 
         <button onClick={() => runGenerate()} disabled={status === "loading" || !isFormReady}
-          className="w-full bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 mb-3">
+          className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500 mb-3">
           {status === "loading"
             ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
-            : "🎵 Discover Music"}
+            : "🎵 Generate Discovery Mix"}
         </button>
 
         {!isFormReady && (
-          <p className="text-xs text-center text-gray-400 mb-4">Select Mood, Language, Activity, and Freshness to generate recommendations.</p>
+          <p className="text-xs text-center text-white/40 mb-4">Select Mood, Language, Activity, and Freshness to generate recommendations.</p>
         )}
 
-        <p className="text-xs text-gray-400 text-center mb-6">
+        <p className="text-xs text-white/40 text-center mb-6">
           This MVP uses publicly available music metadata and AI inference for demonstration.
           It does not represent Gaana&apos;s full internal catalog.
         </p>
 
         {status === "error" && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-sm" role="alert">
-            <p className="font-semibold text-red-700 mb-1">⚠️ Generation issue</p>
-            <p className="text-red-600">{errorMsg}</p>
-            <p className="text-gray-500 text-xs mt-2">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6 text-sm backdrop-blur-sm" role="alert">
+            <p className="font-semibold text-red-400 mb-1">⚠️ Generation issue</p>
+            <p className="text-red-300">{errorMsg}</p>
+            <p className="text-white/50 text-xs mt-2">
               AI generation failed temporarily. If GROQ_API_KEY is configured, check the backend logs. Otherwise a sample catalog fallback will be used automatically on retry.
             </p>
           </div>
@@ -262,13 +276,28 @@ export default function DiscoveryPage() {
         {status === "success" && recs.length > 0 && (
           <div className="mt-2">
             {isFallback && (
-              <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-5 rounded-r-xl text-xs text-amber-800">
+              <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 mb-5 rounded-r-xl text-xs text-amber-300 backdrop-blur-sm">
                 <strong>💡 Demo fallback recommendations shown.</strong>{" "}
                 AI generation was temporarily unavailable. These results are from the sample public music metadata catalog and represent realistic discovery picks for your preferences.
               </div>
             )}
 
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-5 text-white mb-5 shadow">
+            {/* Mini-player-inspired visual bar */}
+            <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-2xl p-4 mb-5 backdrop-blur-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center text-xl shrink-0">
+                🎧
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">Now discovering: Fresh {language} {mood} Mix</p>
+                <p className="text-xs text-white/60">{recs.length} tracks • {freshness} freshness</p>
+              </div>
+              <div className="flex gap-2">
+                <span className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-white/60">⏮</span>
+                <span className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-white/60">⏭</span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-5 text-white mb-5 shadow-lg shadow-red-500/25">
               <h2 className="font-bold text-lg mb-1">🎵 {recs.length} Recommendations Ready</h2>
               <p className="text-white/90 text-sm">{explanation}</p>
               {queryUsed && <p className="text-white/70 text-xs mt-2 italic">Query: {queryUsed}</p>}
@@ -302,9 +331,9 @@ export default function DiscoveryPage() {
 
 function FormCard({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-      <p className="text-sm font-semibold text-gray-700 mb-3">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
+      <p className="text-sm font-semibold text-white mb-3">
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </p>
       {children}
     </div>
@@ -314,56 +343,72 @@ function FormCard({ label, required, children }: { label: string; required?: boo
 function QuickAction({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} type="button"
-      className="inline-flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:border-purple-300 hover:text-purple-700 hover:bg-purple-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+      className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-white/80 px-4 py-2 rounded-xl text-sm font-medium hover:border-red-500/50 hover:text-white hover:bg-white/20 transition-colors backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-red-500">
       {label}
     </button>
   );
 }
 
 const FRESHNESS_BADGE: Record<string, string> = {
-  Safe:     "bg-blue-100 text-blue-700 border-blue-200",
-  Balanced: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Fresh:    "bg-green-100 text-green-700 border-green-200",
+  Safe:     "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  Balanced: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  Fresh:    "bg-green-500/20 text-green-400 border-green-500/30",
 };
 
 function RecCard({ rec, index }: { rec: RecommendationCard; index: number }) {
+  const gradients = [
+    "from-red-500 to-pink-500",
+    "from-pink-500 to-purple-500",
+    "from-purple-500 to-blue-500",
+    "from-blue-500 to-cyan-500",
+    "from-cyan-500 to-green-500",
+    "from-green-500 to-yellow-500",
+    "from-yellow-500 to-orange-500",
+    "from-orange-500 to-red-500",
+  ];
+  const gradient = gradients[index % gradients.length];
+
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3">
-          <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center shrink-0">
-            {index + 1}
-          </span>
-          <div>
-            <h3 className="text-base font-bold text-gray-900 leading-tight">{rec.title}</h3>
-            <p className="text-sm text-gray-500 mt-0.5">{rec.artist_or_type}</p>
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors backdrop-blur-sm">
+      <div className="flex items-start gap-4">
+        {/* Gradient artwork placeholder */}
+        <div className={`w-16 h-16 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-lg`}>
+          🎵
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <h3 className="text-base font-bold text-white leading-tight">{rec.title}</h3>
+              <p className="text-sm text-white/60 mt-0.5">{rec.artist_or_type}</p>
+            </div>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border shrink-0 ${FRESHNESS_BADGE[rec.freshness_label] ?? "bg-white/10 text-white/60 border-white/20"}`}>
+              {rec.freshness_label}
+            </span>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-2 text-sm mb-2">
+            <div className="bg-white/5 rounded-lg p-2.5">
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-1">Why this fits</p>
+              <p className="text-white/70 leading-relaxed text-xs">{rec.why_this_fits}</p>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2.5">
+              <p className="text-xs font-semibold text-pink-400 uppercase tracking-wide mb-1">Language &amp; mood fit</p>
+              <p className="text-white/70 leading-relaxed text-xs">{rec.language_mood_fit}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="bg-red-500/10 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full">
+              <strong>Freshness:</strong> {rec.how_fresh_this_is}
+            </span>
+            {rec.avoids_repeating && (
+              <span className="bg-orange-500/10 text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded-full">
+                <strong>Avoids:</strong> {rec.avoids_repeating}
+              </span>
+            )}
           </div>
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${FRESHNESS_BADGE[rec.freshness_label] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}>
-          {rec.freshness_label}
-        </span>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3 text-sm mb-3">
-        <div className="bg-gray-50 rounded-xl p-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Why this fits</p>
-          <p className="text-gray-700 leading-relaxed">{rec.why_this_fits}</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Language &amp; mood fit</p>
-          <p className="text-gray-700 leading-relaxed">{rec.language_mood_fit}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className="bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-full">
-          <strong>Freshness:</strong> {rec.how_fresh_this_is}
-        </span>
-        {rec.avoids_repeating && (
-          <span className="bg-orange-50 text-orange-700 border border-orange-100 px-2.5 py-1 rounded-full">
-            <strong>Avoids:</strong> {rec.avoids_repeating}
-          </span>
-        )}
       </div>
     </div>
   );

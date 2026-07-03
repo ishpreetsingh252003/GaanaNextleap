@@ -5,8 +5,8 @@ services:
     plan: free
     branch: main
     rootDir: phase5/backend
-    buildCommand: cd phase5/backend && npm install && npm run build
-    startCommand: cd phase5/backend && npm run start
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
       - key: GROQ_API_KEY
@@ -16,4 +16,4 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
+        value: 3001
