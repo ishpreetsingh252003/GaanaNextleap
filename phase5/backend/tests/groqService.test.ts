@@ -110,7 +110,7 @@ describe("GroqService", () => {
 
       const service = new GroqService();
       const reviews = [{ source: "google_play" as const, rating: 3, text: "Great app", review_date: "2026-03-15T00:00:00Z" }];
-      await expect(service.analyzeReviews(reviews)).rejects.toThrow("Received empty response content");
+      await expect(service.analyzeReviews(reviews)).rejects.toThrow("Empty response from Groq API.");
     });
 
     it("throws when Groq API call fails", async () => {
@@ -155,7 +155,7 @@ describe("GroqService", () => {
         activity: "Studying",
         freshness: "Balanced",
         avoid: [],
-      })).rejects.toThrow("Received empty response content");
+      })).rejects.toThrow("Empty response from Groq API.");
     });
 
     it("returns empty recommendations when recommendations array is missing", async () => {
