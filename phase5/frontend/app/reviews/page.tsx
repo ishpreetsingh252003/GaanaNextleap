@@ -401,15 +401,39 @@ export default function ReviewsPage() {
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  onClick?: () => void;
+}) {
   const c: Record<string, string> = {
     red: "border-red-500/30 bg-red-500/10 text-red-400",
     pink: "border-pink-500/30 bg-pink-500/10 text-pink-400",
     purple: "border-purple-500/30 bg-purple-500/10 text-purple-400",
     orange: "border-orange-500/30 bg-orange-500/10 text-orange-400",
   };
+
+  const clickable = typeof onClick === "function";
+
   return (
-    <div className={`border rounded-2xl p-4 backdrop-blur-sm ${c[color]}`}>
+    <div
+      className={`border rounded-2xl p-4 backdrop-blur-sm ${c[color]} ${
+        clickable ? "cursor-pointer hover:brightness-110" : ""
+      }`}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!clickable) return;
+        if (e.key === "Enter" || e.key === " ") onClick?.();
+      }}
+    >
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-xs mt-0.5 opacity-80">{label}</p>
     </div>

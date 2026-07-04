@@ -1,24 +1,71 @@
 import { Router, Request, Response } from "express";
 import getGroqService, { GroqService } from "../services/groqService";
 import { FALLBACK_ANALYSIS } from "../data/fallbackAnalysis";
+import { fallbackReviews, FallbackReview } from "../data/fallbackData";
 import { Review } from "../types/review";
 
 const router = Router();
 const groqService = getGroqService() as unknown as GroqService;
 
+// Helper: Filter fallback reviews by source and date range
+function filterFallbackReviews(
+  sources?: string[],
+  startDate?: string,
+  endDate?: string
+): FallbackReview[] {
+  let filtered = fallbackReviews;
+
+  if (sources && sources.length > 0) {
+    filtered = filtered.filter((r) => sources.includes(r.source));
+  }
+
+  if (startDate) {
+    const start = new Date(startDate);
+    filtered = filtered.filter((r) => new Date(r.date) >= start);
+  }
+
+  if (endDate) {
+    const end = new Date(endDate);
+    filtered = filtered.filter((r) => new Date(r.date) <= end);
+  }
+
+  return filtered;
+}
+
+// POST /api/analysis/review-analysis - NEW unified analysis endpoint
 router.post("/review-analysis", async (req: Request, res: Response) => {
-  const { reviews, useFallback } = req.body as {
+  const { reviews, useFallback, sources, startDate, endDate } = req.body as {
     reviews?: Review[];
     useFallback?: boolean;
+    sources?: string[];
+    startDate?: string;
+    endDate?: string;
   };
 
   // ── Explicit fallback request ────────────────────────────────────────────
   if (useFallback === true) {
     console.log("[AnalysisRoute] Returning pre-generated fallback analysis (requested).");
+    const filtered = filterFallbackReviews(sources, startDate, endDate);
+    
+    // Determine actual date range
+    const dates = filtered.map((r) => new Date(r.date).getTime());
+    const actualStart = dates.length > 0 ? new Date(Math.min(...dates)).toISOString().split("T")[0] : startDate || "2026-01-01";
+    const actualEnd = dates.length > 0 ? new Date(Math.max(...dates)).toISOString().split("T")[0] : endDate || new Date().toISOString().split("T")[0];
+
+    // Count sources
+    const sourcesUsed = Array.from(new Set(filtered.map((r) => r.source)));
+    
     return res.json({
       success: true,
       total_reviews_submitted: 0,
-      analysis: FALLBACK_ANALYSIS,
+      analysis: {
+        ...FALLBACK_ANALYSIS,
+        total_reviews_analyzed: filtered.length,
+        sources_used: sourcesUsed,
+        requested_date_range: startDate && endDate ? `${startDate} to ${endDate}` : null,
+        actual_date_range: `${actualStart} to ${actualEnd}`,
+        is_fallback: true,
+      },
     });
   }
 

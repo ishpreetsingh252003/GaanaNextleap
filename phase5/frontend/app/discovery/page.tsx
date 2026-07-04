@@ -139,7 +139,7 @@ export default function DiscoveryPage() {
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Fresh Finds</Link>
+          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Discovery Agent</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>

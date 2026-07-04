@@ -18,7 +18,7 @@ const VALID_AVOID_OPTIONS = [
 ];
 
 router.post("/discovery-agent", async (req: Request, res: Response) => {
-  const { mood, language, activity, freshness, reference, avoid } = req.body;
+  const { mood, language, activity, freshness, reference, avoid, refineAction } = req.body;
 
   // ── Validation ──────────────────────────────────────────────────────────
   if (!mood || !language || !activity || !freshness) {
@@ -74,6 +74,7 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
     freshness: freshness as string,
     reference: reference as string | undefined,
     avoid: (avoid as string[]) || [],
+    refineAction: refineAction as string | undefined,
   };
 
   // ── Try Groq first ───────────────────────────────────────────────────────

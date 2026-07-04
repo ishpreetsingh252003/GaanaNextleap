@@ -91,11 +91,14 @@ export default function AboutPage() {
               Instead of conducting surveys or user interviews, this project uses a <strong>review-led validation approach</strong> — leveraging publicly available user feedback signals from app store reviews, Reddit discussions, Quora threads, and tech blogs as the primary validation source.
             </p>
             <p>
-              The Review Engine scrapes and aggregates real user opinions from 6 public sources. The AI then performs thematic analysis to extract pain points, frustrations, and opportunity areas — producing structured insights equivalent to qualitative research outputs.
+              The Review Engine analyzes public feedback signals and demo public-review-style data for reliability. AI then performs thematic analysis to extract pain points, frustrations, and opportunity areas — producing structured insights equivalent to qualitative research outputs.
             </p>
-            <p className="text-white/50 italic">
-              No surveys or interviews were conducted. All validation signals come from publicly available user reviews and online feedback.
-            </p>
+            <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 rounded-r-xl">
+              <p className="text-amber-300 font-semibold mb-2">⚠️ Validation Limitation</p>
+              <p className="text-amber-300/90">
+                No direct interviews were conducted in this version. Future validation should include 5–6 interviews with young Indian music listeners.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -104,21 +107,21 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold mb-3 text-purple-400">⚙️ How It Works</h2>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5 backdrop-blur-sm">
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">1. Review Engine (Part 1–2)</h3>
+              <h3 className="text-sm font-semibold text-white mb-2">1. Review Engine</h3>
               <p className="text-sm text-white/70 leading-relaxed">
-                Scrapes user reviews from Google Play Store, Apple App Store, Reddit, Quora, Twitter/X, and Web sources. All scraped text passes through a PII removal pipeline (emails, phone numbers, usernames, URLs, and IDs are masked). The cleaned reviews are then sent to Groq&apos;s Llama 3.3 70B model for AI-powered thematic analysis — extracting themes, pain points, representative quotes, sentiment distribution, target user segments, and business opportunities.
+                Analyzes public feedback signals and demo public-review-style data for reliability. All text passes through a PII removal pipeline (emails, phone numbers, usernames, URLs, and IDs are masked). The cleaned reviews are then sent to Groq&apos;s Llama 3.3 70B model for AI-powered thematic analysis — extracting themes, pain points, representative quotes, sentiment distribution, target user segments, and business opportunities.
               </p>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">2. Analysis Dashboard (Part 2)</h3>
+              <h3 className="text-sm font-semibold text-white mb-2">2. Discovery Dashboard</h3>
               <p className="text-sm text-white/70 leading-relaxed">
-                Displays the structured AI analysis output: problem statement, key themes with counts and quotes, sentiment breakdown (positive/neutral/negative), target user segment, and business opportunity. Can load either live analysis from the Review Engine or pre-generated sample data for demo purposes.
+                Displays the structured AI analysis output: problem statement, key themes with counts and quotes, sentiment breakdown (positive/neutral/negative), target user segment, and opportunity areas. Can load either live analysis from the Review Engine or pre-generated sample data for demo purposes.
               </p>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">3. Discovery Agent (Part 3–4)</h3>
+              <h3 className="text-sm font-semibold text-white mb-2">3. Fresh Finds MVP</h3>
               <p className="text-sm text-white/70 leading-relaxed">
-                An AI-powered music recommendation agent that lets users control discovery parameters: mood, language, activity context, freshness preference, reference artists, and what to avoid (repeated artists, mainstream hits, overplayed tracks, etc.). The agent sends structured preferences to Groq&apos;s LLM, which returns personalized track recommendations with explanations of why each track fits.
+                An AI-powered music recommendation experience that lets users control discovery parameters: mood, language, activity context, freshness preference, reference artists, and what to avoid (repeated artists, mainstream hits, overplayed tracks, etc.). Returns personalized track recommendations with explanations of why each track fits. The MVP does not connect to Gaana&apos;s internal catalog or recommendation system.
               </p>
             </div>
           </div>

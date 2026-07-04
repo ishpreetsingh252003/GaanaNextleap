@@ -76,11 +76,16 @@ export default function DashboardPage() {
               <p className="text-white leading-relaxed text-lg font-medium">{analysis.problem_statement}</p>
             </section>
 
+            {/* Opportunity */}
+            <section className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-6 mb-8 backdrop-blur-sm">
+              <h2 className="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3">Opportunity</h2>
+              <p className="text-white leading-relaxed text-lg font-medium">{analysis.business_opportunity}</p>
+            </section>
+
             {/* 3-column info */}
-            <section className="grid md:grid-cols-3 gap-5 mb-8">
+            <section className="grid md:grid-cols-2 gap-5 mb-8">
               <InfoCard title="Summary" body={analysis.summary} />
               <InfoCard title="Target User Segment" body={analysis.target_user_segment} />
-              <InfoCard title="Business Opportunity" body={analysis.business_opportunity} />
             </section>
 
             {/* Sentiment */}
@@ -107,11 +112,16 @@ export default function DashboardPage() {
             <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-6 text-white text-center shadow-lg shadow-red-500/25">
               <p className="text-lg font-semibold mb-1">Ready to address these pain points?</p>
               <p className="text-sm text-white/80 mb-4">
-                The Discovery Agent lets users control mood, language, freshness, and avoid preferences — directly solving the issues surfaced above.
+                Fresh Finds lets users control mood, language, freshness, and avoid preferences — directly solving the issues surfaced above.
               </p>
               <Link href="/discovery" className="inline-block bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                Try Discovery Agent →
+                Try Fresh Finds →
               </Link>
+            </div>
+
+            {/* Limitation notice */}
+            <div className="mt-6 bg-amber-500/10 border-l-4 border-amber-500 p-4 rounded-r-xl text-xs text-amber-300 backdrop-blur-sm">
+              <strong>Validation Limitation:</strong> No direct interviews were conducted in this version. Future validation should include 5–6 interviews with the chosen target segment.
             </div>
           </>
         ) : (

@@ -13,7 +13,7 @@ export const FALLBACK_ANALYSIS = {
   summary:
     "Users consistently report frustration with repetitive recommendation loops, mainstream popularity bias, and poor context-awareness in music discovery. There is a clear, unmet demand for fresh regional/indie tracks, activity-specific playlists, and user-controlled discovery parameters.",
   total_reviews_analyzed: 120,
-  date_range: "2026-01-01 to 2026-07-03",
+  date_range: "2026-01-01 to 2026-07-04",
   is_fallback: true,
   themes: [
     {
@@ -111,7 +111,7 @@ export const FALLBACK_ANALYSIS = {
   target_user_segment:
     "Young Indian listeners aged 18–30 who are digitally native, open to diverse Indian regional and indie genres, but feel trapped in mainstream recommendation loops. They are willing to put in effort to find good music but frustrated when the platform doesn't support discovery.",
   problem_statement:
-    "Young Indian music listeners on streaming platforms fall into repetitive listening loops because recommendation systems prioritise familiarity and viral popularity over fresh, contextually-relevant discovery. Users who want niche, regional, or mood-specific music have no effective controls to break out of the mainstream filter bubble.",
+    "Young Indian listeners want music that feels fresh, but still matches their mood, language, and current context. When recommendations feel repetitive or random, they return to familiar playlists.",
   business_opportunity:
-    "Introducing AI-powered, user-controllable music discovery — with explicit parameters for mood, activity, language, freshness, and avoidance preferences — directly addresses the #1 frustration in public user feedback. This can increase session length, improve discovery metrics, and surface long-tail regional catalog content that currently receives low organic exposure.",
+    "Give users control over freshness, familiarity, language, mood, and avoid preferences.",
 };

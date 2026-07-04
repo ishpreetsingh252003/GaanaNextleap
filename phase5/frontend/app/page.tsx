@@ -84,15 +84,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main title */}
+        {/* Hero title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-3 tracking-tight">
             <span className="bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 bg-clip-text text-transparent">
-              Gaana Discovery AI
+              Find songs that feel new, not random
             </span>
           </h1>
           <p className="text-base sm:text-lg text-white/80 max-w-2xl mx-auto leading-relaxed">
-            Fresh music discovery powered by public user feedback
+            Fresh Finds helps listeners discover music by mood, language, activity, and freshness — without falling back into the same playlists.
           </p>
         </div>
 
@@ -102,13 +102,13 @@ export default function Home() {
             href="/reviews"
             className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-8 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-red-500/25 hover:-translate-y-0.5"
           >
-            Analyze Reviews
+            View Review Insights
           </Link>
           <Link
             href="/discovery"
             className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-8 py-3.5 rounded-full font-bold transition-all backdrop-blur-sm hover:-translate-y-0.5"
           >
-            Try Discovery Agent
+            Try Fresh Finds
           </Link>
         </div>
 
@@ -136,13 +136,12 @@ export default function Home() {
 
         {/* Product flow cards */}
         <div className="max-w-4xl mx-auto mb-10">
-          <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 text-center">How It Works</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 text-center">Product Flow</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
-              { icon: "📡", label: "Public Reviews", desc: "Scrape feedback" },
-              { icon: "🧠", label: "AI Analysis", desc: "Extract themes" },
-              { icon: "⚠️", label: "Pain Points", desc: "Identify issues" },
-              { icon: "🤖", label: "Discovery Agent", desc: "Generate picks" },
+              { icon: "📡", label: "Review Engine", desc: "Analyze feedback" },
+              { icon: "📊", label: "Discovery Dashboard", desc: "View insights" },
+              { icon: "🎵", label: "Fresh Finds", desc: "Get recommendations" },
             ].map((step, i) => (
               <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center hover:bg-white/10 transition-colors">
                 <span className="text-2xl sm:text-3xl block mb-2">{step.icon}</span>
@@ -179,7 +178,7 @@ export default function Home() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
             <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Problem Statement</h3>
             <p className="text-sm text-white/80 leading-relaxed">
-              "Young Indian music listeners often fall back to familiar playlists, artists, and tracks because discovering fresh but still relevant music takes effort."
+              Young Indian listeners want music that feels fresh, but still matches their mood, language, and current context. When recommendations feel repetitive or random, they return to familiar playlists.
             </p>
           </div>
         </div>
@@ -187,9 +186,12 @@ export default function Home() {
         {/* Review-led validation */}
         <div className="max-w-3xl mx-auto mb-10">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-            <h3 className="text-xs font-semibold text-pink-400 uppercase tracking-wider mb-3">Review-Led Validation Approach</h3>
+            <h3 className="text-xs font-semibold text-pink-400 uppercase tracking-wider mb-3">Validation Approach</h3>
             <p className="text-xs text-white/70 leading-relaxed">
-              Because direct interviews were not included in this version, the opportunity was validated through public user feedback analysis. Reviews and online discussions were treated as real usage signals to identify repeated discovery pain points.
+              This version uses review-led validation from public feedback signals. Direct user interviews are recommended as the next validation step.
+            </p>
+            <p className="text-xs text-white/50 leading-relaxed mt-2">
+              No direct interviews were conducted in this version. Future validation should include 5–6 interviews with young Indian music listeners.
             </p>
           </div>
         </div>
