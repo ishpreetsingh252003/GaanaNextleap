@@ -149,10 +149,14 @@ export const checkHealth = () => apiFetch<HealthResponse>("/api/health");
 export const getSources = () =>
   apiFetch<{ sources: SourceInfo[] }>("/api/reviews/sources");
 
-export const scrapeReviews = (sources?: ReviewSource[]) =>
+export const scrapeReviews = (sources?: ReviewSource[], startDate?: string, endDate?: string) =>
   apiFetch<ScrapeResponse>("/api/reviews/scrape", {
     method: "POST",
-    body: JSON.stringify(sources?.length ? { sources } : {}),
+    body: JSON.stringify({ 
+      sources: sources?.length ? sources : undefined,
+      startDate,
+      endDate,
+    }),
   });
 
 export const analyzeReviews = (reviews: Review[]) =>

@@ -139,16 +139,16 @@ export default function DiscoveryPage() {
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Discovery Agent</Link>
+          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Fresh Finds</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Music Discovery Agent</h1>
+          <h1 className="text-3xl font-bold mb-2">Fresh Finds by Gaana</h1>
           <p className="text-white/60 text-sm">
-            Tell us your mood, language, and activity — get 8–10 fresh but relevant Indian music picks with specific reasoning for each.
+            Discover your next favorite Indian tracks. Select a vibe and get fresh, personalized recommendations.
           </p>
         </div>
 
@@ -180,37 +180,42 @@ export default function DiscoveryPage() {
         </div>
 
         {/* Form */}
-        <div className="grid sm:grid-cols-2 gap-5 mb-5">
-          <FormCard label="Mood" required>
-            <div className="flex flex-wrap gap-2">
-              {MOODS.map((m) => (
-                <button key={m} onClick={() => setMood(m)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${mood === m ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </FormCard>
-
-          <FormCard label="Language" required>
-            <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map((l) => (
-                <button key={l} onClick={() => setLanguage(l)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${language === l ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-          </FormCard>
-
-          <FormCard label="Activity" required>
-            <div className="flex flex-wrap gap-2">
-              {ACTIVITIES.map((a) => (
-                <button key={a} onClick={() => setActivity(a)} type="button"
-                  className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${activity === a ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
-                  {a}
-                </button>
-              ))}
+        <div className="grid grid-cols-1 gap-5 mb-5">
+          <FormCard label="Select Your Vibe" required>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Mood</p>
+                <div className="flex flex-wrap gap-2">
+                  {MOODS.map((m) => (
+                    <button key={m} onClick={() => setMood(m)} type="button"
+                      className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${mood === m ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Language</p>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGES.map((l) => (
+                    <button key={l} onClick={() => setLanguage(l)} type="button"
+                      className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${language === l ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Activity</p>
+                <div className="flex flex-wrap gap-2">
+                  {ACTIVITIES.map((a) => (
+                    <button key={a} onClick={() => setActivity(a)} type="button"
+                      className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${activity === a ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </FormCard>
 
@@ -251,7 +256,7 @@ export default function DiscoveryPage() {
           className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500 mb-3">
           {status === "loading"
             ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
-            : "🎵 Generate Discovery Mix"}
+            : "Find My Vibe"}
         </button>
 
         {!isFormReady && (

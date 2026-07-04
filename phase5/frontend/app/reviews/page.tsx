@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getSources, scrapeReviews, analyzeReviews, loadFallbackAnalysis,
   SourceInfo, ReviewSource, ScrapeResponse, Review, AnalysisResult, BackendError,
@@ -25,13 +25,24 @@ function sourceLabel(s: ReviewSource): string {
     quora:"Quora",web_news:"Web/News",twitter_web:"Twitter" }[s];
 }
 
+const INSIGHT_CARDS = [
+  "Discovery works best when music feels fresh but still familiar.",
+  "If recommendations feel random, users often return to old playlists.",
+  "Mood, language, and activity are stronger discovery signals than genre alone.",
+  "Young listeners often discover songs through social platforms before streaming apps.",
+  "A good discovery system should let users control freshness, familiarity, language, and context.",
+  "Repeat listening is not always bad — the problem is when users cannot easily find fresh alternatives.",
+  "Freshness without relevance feels random. Familiarity without freshness feels repetitive.",
+  "Regional music discovery is often harder when mainstream and viral content dominate feeds.",
+];
+
 const LOAD_STEPS = [
-  "Fetching public feedback from selected sources…",
-  "Cleaning and deduplicating reviews…",
-  "Removing personally identifiable information…",
-  "Analysing themes with AI…",
-  "Generating problem statement and opportunities…",
-  "Finalising insights…",
+  "Collecting public feedback",
+  "Cleaning duplicate reviews",
+  "Filtering by selected date range",
+  "Finding repeated discovery complaints",
+  "Extracting representative quotes",
+  "Building opportunity areas",
 ];
 
 type ScrapeStatus = "idle" | "loading" | "success" | "error";
@@ -47,7 +58,41 @@ export default function ReviewsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSource, setFilterSource] = useState<ReviewSource | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentInsight, setCurrentInsight] = useState(0);
+  const reviewsRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
+
+  const [startDate, setStartDate] = useState("2026-01-01");
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [activeQuickRange, setActiveQuickRange] = useState<'30d' | '90d' | '2026' | 'custom'>("2026");
+  const [dateError, setDateError] = useState("");
+
+  useEffect(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) {
+      setDateError("Please select a valid date range.");
+    } else if (end > new Date()) {
+      setDateError("To date cannot be in the future.");
+    } else {
+      setDateError("");
+    }
+  }, [startDate, endDate]);
+
+  function setDateRange(range: '30d' | '90d' | '2026') {
+    setActiveQuickRange(range);
+    const today = new Date();
+    let fromDate = new Date();
+    if (range === '30d') {
+      fromDate.setDate(today.getDate() - 30);
+    } else if (range === '90d') {
+      fromDate.setDate(today.getDate() - 90);
+    } else if (range === '2026') {
+      fromDate = new Date("2026-01-01");
+    }
+    setStartDate(fromDate.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  }
 
   useEffect(() => {
     getSources()
@@ -72,18 +117,29 @@ export default function ReviewsPage() {
   // Step ticker during loading
   function startStepTicker() {
     setLoadStep(0);
+    setCurrentInsight(0);
     let step = 0;
-    const iv = setInterval(() => {
+    const stepIv = setInterval(() => {
       step = Math.min(step + 1, LOAD_STEPS.length - 1);
       setLoadStep(step);
+    }, 3500);
+    const insightIv = setInterval(() => {
+      setCurrentInsight(prev => (prev + 1) % INSIGHT_CARDS.length);
     }, 4000);
-    return iv;
+    return () => {
+      clearInterval(stepIv);
+      clearInterval(insightIv);
+    };
   }
 
   async function handleFallbackLoad() {
-    setStatus("loading"); setErrorMsg(""); setLoadStep(0);
+    setStatus("loading"); setErrorMsg("");
+    const clearTicker = startStepTicker();
     try {
+      // Simulate a short delay for the loading screen to be appreciated
+      await new Promise(resolve => setTimeout(resolve, 2000));
       const resp = await loadFallbackAnalysis();
+      clearTicker();
       const fallbackAnalysis = resp.analysis;
       const mockReviews: Review[] = [
         { id:"fb-1",source:"google_play",rating:2,title:"Repeats same songs",text:"I am tired of listening to the same old songs. The app keeps recommending the same 10 hits over and over.",author:"Rahul S.",date:"2026-03-01T00:00:00Z",url:null,lang:"en" },
@@ -96,35 +152,38 @@ export default function ReviewsPage() {
         { id:"fb-8",source:"app_store",rating:2,title:"Bias towards mainstream",text:"Everything recommended is mainstream and viral. What if I want regional music that is niche? The algorithm forces hits upon us.",author:"Karthik R.",date:"2026-06-12T00:00:00Z",url:null,lang:"en" },
       ];
       const mockResponse: ScrapeResponse = {
-        success: true, total_reviews: mockReviews.length,
-        date_range: { from: "2026-01-01", to: new Date().toISOString() },
-        sources_summary: { google_play:3, app_store:2, reddit:1, quora:1, web_news:1 } as any,
-        reviews: mockReviews,
+        success: true, total_reviews: 120, // Updated count
+        date_range: { from: "2026-01-01", to: "2026-07-03" },
+        sources_summary: { google_play:3, app_store:2, reddit:1, quora:1, web_news:1, twitter_web: 0 } as any,
+        reviews: mockReviews, // We only show a few representative ones
       };
       setResult(mockResponse);
       setAnalysis(fallbackAnalysis);
       sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(fallbackAnalysis));
       setStatus("success"); setCurrentPage(1);
     } catch (err) {
+      clearTicker();
       const msg = err instanceof BackendError ? err.message : "Failed to load fallback data";
       setErrorMsg(msg); setStatus("error");
     }
   }
 
   async function handleScrape() {
-    if (selected.length === 0) return;
+    if (selected.length === 0 || dateError) return;
     setStatus("loading"); setErrorMsg(""); setResult(null); setAnalysis(null); setCurrentPage(1);
-    const ticker = startStepTicker();
+    const clearTicker = startStepTicker();
     try {
-      const data = await scrapeReviews(selected);
+      const data = await scrapeReviews(selected, startDate, endDate);
       setLoadStep(3);
       const resp = await analyzeReviews(data.reviews);
-      clearInterval(ticker); setLoadStep(5);
-      setResult(data); setAnalysis(resp.analysis);
+      clearTicker(); 
+      setLoadStep(5);
+      setResult(data); 
+      setAnalysis(resp.analysis);
       sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(resp.analysis));
       setStatus("success");
     } catch (err) {
-      clearInterval(ticker);
+      clearTicker();
       const msg = err instanceof BackendError ? err.message : err instanceof Error ? err.message : "Scraping or analysis failed";
       setErrorMsg(msg); setStatus("error");
     }
@@ -164,43 +223,94 @@ export default function ReviewsPage() {
           </p>
         </div>
 
-        <section className="bg-white/5 border border-white/10 rounded-3xl p-6 mb-6 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-semibold text-white">Select Sources</h2>
-            <div className="flex gap-3 text-xs">
-              <button onClick={() => setSelected(sources.map((s) => s.id))} className="text-red-400 hover:text-red-300 transition-colors">Select all</button>
-              <button onClick={() => setSelected([])} className="text-white/40 hover:text-white/60 transition-colors">Clear</button>
+        <section ref={reviewsRef} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+          <div className="mb-6">
+            <h2 className="font-semibold text-white mb-3">Select feedback date range</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+              <div>
+                <label htmlFor="start-date" className="text-xs text-white/60 mb-1 block">From</label>
+                <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+              </div>
+              <div>
+                <label htmlFor="end-date" className="text-xs text-white/60 mb-1 block">To</label>
+                <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500"/>
+              </div>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setDateRange("30d")} className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeQuickRange === '30d' ? 'bg-red-500 border-red-500 text-white' : 'border-white/20 hover:bg-white/10'}`}>Last 30 days</button>
+              <button onClick={() => setDateRange("90d")} className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeQuickRange === '90d' ? 'bg-red-500 border-red-500 text-white' : 'border-white/20 hover:bg-white/10'}`}>Last 90 days</button>
+              <button onClick={() => setDateRange("2026")} className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeQuickRange === '2026' ? 'bg-red-500 border-red-500 text-white' : 'border-white/20 hover:bg-white/10'}`}>2026 so far</button>
+              <button onClick={() => setActiveQuickRange("custom")} className={`text-xs px-3 py-1 rounded-full border transition-colors ${activeQuickRange === 'custom' ? 'bg-red-500 border-red-500 text-white' : 'border-white/20 hover:bg-white/10'}`}>Custom</button>
+            </div>
+            {dateError && <p className="text-red-400 text-xs mt-2">{dateError}</p>}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {sources.map((src) => {
-              const isOn = selected.includes(src.id);
-              return (
-                <button key={src.id} onClick={() => toggleSource(src.id)} aria-pressed={isOn}
-                  className={`flex items-center gap-3 border rounded-2xl px-4 py-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${isOn ? "bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-500/50 text-white shadow-lg shadow-red-500/10" : "bg-white/5 border-white/10 text-white/50 hover:border-white/20 hover:bg-white/10"}`}>
-                  <span className="text-2xl">{SOURCE_ICONS[src.id]}</span>
-                  <span className="text-left">{src.label}</span>
-                  {isOn && <span className="ml-auto text-xs bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center">✓</span>}
-                </button>
-              );
-            })}
+
+          <div className="border-t border-white/10 pt-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-semibold text-white">Select Sources</h2>
+              <div className="flex gap-3 text-xs">
+                <button onClick={() => setSelected(sources.map((s) => s.id))} className="text-red-400 hover:text-red-300 transition-colors">Select all</button>
+                <button onClick={() => setSelected([])} className="text-white/40 hover:text-white/60 transition-colors">Clear</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {sources.map((src) => {
+                const isOn = selected.includes(src.id);
+                return (
+                  <button key={src.id} onClick={() => toggleSource(src.id)} aria-pressed={isOn}
+                    className={`flex items-center gap-3 border rounded-2xl px-4 py-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${isOn ? "bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-500/50 text-white shadow-lg shadow-red-500/10" : "bg-white/5 border-white/10 text-white/50 hover:border-white/20 hover:bg-white/10"}`}>
+                    <span className="text-2xl">{SOURCE_ICONS[src.id]}</span>
+                    <span className="text-left">{src.label}</span>
+                    {isOn && <span className="ml-auto text-xs bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button onClick={handleScrape} disabled={status === "loading" || selected.length === 0}
             className="mt-6 w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500">
             {status === "loading"
               ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
-              : `🔍 Scrape & Analyse ${selected.length} Source${selected.length !== 1 ? "s" : ""}`}
+              : selected.length === 0 ? "Select at least one source to analyze" : "Analyze Selected Sources"}
           </button>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <button onClick={handleFallbackLoad} disabled={status === "loading"}
               className="text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
-              💡 Load Fallback Public Review Data
+              Run Demo Analysis
             </button>
-            <span className="text-xs text-white/40 max-w-xs">Fallback data contains 100+ public-review-style entries across multiple sources to keep the demo reliable when live public sources return limited results.</span>
+            <span className="text-xs text-white/40 max-w-xs">Uses 100+ public-review-style feedback entries across multiple sources when live sources return limited results.</span>
           </div>
         </section>
+
+        {status === "loading" && (
+          <section className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h2 className="font-semibold text-white mb-4">Analysis in Progress...</h2>
+              <ul className="space-y-3">
+                {LOAD_STEPS.map((step, i) => (
+                  <li key={step} className={`flex items-center gap-3 text-sm transition-opacity ${i <= loadStep ? 'opacity-100' : 'opacity-40'}`}>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${i <= loadStep ? 'bg-red-500' : 'bg-white/10'}`}>
+                      {i < loadStep ? '✓' : <span className="animate-pulse">...</span>}
+                    </div>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <h3 className="font-semibold text-white mb-3">Music Discovery Insights</h3>
+                <div className="relative h-32">
+                  {INSIGHT_CARDS.map((insight, i) => (
+                     <div key={i} className={`absolute inset-0 transition-opacity duration-500 ${i === currentInsight ? 'opacity-100' : 'opacity-0'}`}>
+                        <p className="text-white/80 leading-relaxed">“{insight}”</p>
+                     </div>
+                  ))}
+                </div>
+            </div>
+          </section>
+        )}
 
         {status === "error" && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 mb-6 text-sm backdrop-blur-sm" role="alert">
@@ -208,7 +318,7 @@ export default function ReviewsPage() {
             <p className="text-red-300 mb-3">{errorMsg}</p>
             <p className="text-white/50 text-xs mb-3">Live fetching may fail due to public source restrictions or network issues. Use fallback review data to continue.</p>
             <button onClick={handleFallbackLoad} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-lg text-xs">
-              💡 Load Fallback Public Reviews & Run Analysis
+              💡 Run Demo Analysis
             </button>
           </div>
         )}
@@ -223,20 +333,24 @@ export default function ReviewsPage() {
             )}
 
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <StatCard label="Reviews" value={result.total_reviews.toString()} color="red" />
-              <StatCard label="Sources" value={Object.keys(result.sources_summary).length.toString()} color="pink" />
-              <StatCard label="Themes Found" value={(analysis.themes?.length ?? 0).toString()} color="purple" />
+              <StatCard label="Reviews Analyzed" value={result.total_reviews.toString()} color="red" />
+              <StatCard label="Sources Covered" value={Object.keys(result.sources_summary).length.toString()} color="pink" onClick={() => {
+                setFilterSource("all");
+                reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
+              }} />
+              <StatCard label="Date Range" value={`${new Date(result.date_range.from).toLocaleDateString("en-IN", { month: "short", year: "numeric" })} – ${new Date(result.date_range.to).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}`} color="purple" />
               <StatCard label="Negative Sentiment" value={`${analysis.sentiment_summary?.negative ?? 0}%`} color="orange" />
             </section>
 
             <section className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 backdrop-blur-sm">
-              <h2 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Sources</h2>
-              <div className="flex flex-wrap gap-2">
-                {(Object.entries(result.sources_summary) as [ReviewSource, number][]).map(([src, count]) => (
-                  <span key={src} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium bg-white/10 border-white/20 text-white/80`}>
-                    {SOURCE_ICONS[src]} {sourceLabel(src)}: <strong>{count}</strong>
-                  </span>
-                ))}
+              <h2 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Analysis Details</h2>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  <div className="text-sm text-white/80">
+                    <span className="font-medium">Date range analyzed:</span> {new Date(result.date_range.from).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} to {new Date(result.date_range.to).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  </div>
+                  <div className="text-sm text-white/80">
+                    <span className="font-medium">Sources:</span> {(Object.keys(result.sources_summary) as ReviewSource[]).map(sourceLabel).join(', ')}
+                  </div>
               </div>
             </section>
 
@@ -251,10 +365,13 @@ export default function ReviewsPage() {
                   <option key={src} value={src} className="bg-gray-900">{sourceLabel(src)}</option>
                 ))}
               </select>
-              <span className="self-center text-sm text-white/50">{filteredReviews.length} review{filteredReviews.length !== 1 ? "s" : ""}</span>
+              <span className="self-center text-sm text-white/50">{paged.length > 0 ? `Showing ${paged.length} of ${filteredReviews.length} reviews` : 'No matching reviews'}</span>
             </section>
 
             <section className="space-y-3 mb-6">
+              <p className="text-sm text-white/60 mb-4">
+                Showing representative reviews from {result.total_reviews} analyzed entries.
+              </p>
               {paged.length === 0
                 ? <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-white/40 backdrop-blur-sm">No reviews match your filter.</div>
                 : paged.map((r) => <ReviewCard key={r.id} review={r} />)}
