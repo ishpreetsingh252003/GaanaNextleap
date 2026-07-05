@@ -20,6 +20,14 @@ const SOURCE_COLORS: Record<ReviewSource, string> = {
   web_news: "bg-blue-100 border-blue-300 text-blue-800",
   twitter_web: "bg-sky-100 border-sky-300 text-sky-800",
 };
+const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
+  "google_play",
+  "app_store",
+  "reddit",
+  "quora",
+  "web_news",
+  "twitter_web",
+];
 function sourceLabel(s: ReviewSource): string {
   return { google_play:"Google Play",app_store:"App Store",reddit:"Reddit",
     quora:"Quora",web_news:"Web/News",twitter_web:"Twitter" }[s];
@@ -49,7 +57,7 @@ type ScrapeStatus = "idle" | "loading" | "success" | "error";
 
 export default function ReviewsPage() {
   const [sources, setSources] = useState<SourceInfo[]>([]);
-  const [selected, setSelected] = useState<ReviewSource[]>([]);
+  const [selected, setSelected] = useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
   const [status, setStatus] = useState<ScrapeStatus>("idle");
   const [loadStep, setLoadStep] = useState(0);
   const [result, setResult] = useState<ScrapeResponse | null>(null);
