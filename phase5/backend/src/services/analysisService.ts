@@ -11,13 +11,18 @@ export const VALID_REVIEW_SOURCES: ReviewSource[] = [
   "twitter_web",
 ];
 
-export const GROQ_SAMPLE_LIMIT = 30;
+export const GROQ_SAMPLE_LIMIT = 90;
+export const GROQ_CHUNK_SIZE = 50;
 export const REPRESENTATIVE_REVIEW_LIMIT = 8;
 
 const SIGNAL_KEYWORDS = [
+  "repeat",
   "repetitive",
   "same songs",
+  "old songs",
+  "new songs",
   "old playlist",
+  "playlist",
   "recommendation",
   "mood",
   "language",
@@ -26,6 +31,7 @@ const SIGNAL_KEYWORDS = [
   "fresh",
   "discover",
   "artists",
+  "artist",
   "gym",
   "travel",
   "party",
@@ -129,7 +135,104 @@ export function selectRepresentativeReviews(reviews: Review[], limit = REPRESENT
 }
 
 export function buildGroqSample(reviews: Review[], limit = GROQ_SAMPLE_LIMIT): Review[] {
-  return selectSignalRichSample(reviews, limit);
+  return buildStratifiedReviewSample(reviews, limit);
+}
+
+export function buildStratifiedReviewSample(reviews: Review[], limit = GROQ_SAMPLE_LIMIT): Review[] {
+  if (reviews.length <= limit) return [...reviews];
+
+  const selected = new Map<string, Review>();
+  const addBest = (bucket: Review[]) => {
+    if (selected.size >= limit || bucket.length === 0) return;
+    const best = [...bucket]
+      .filter((review) => !selected.has(review.id))
+      .sort(scoreReviews)[0];
+    if (best) selected.set(best.id, best);
+  };
+
+  for (const source of VALID_REVIEW_SOURCES) {
+    const sourceReviews = reviews.filter((review) => normalizeSource(review.source) === source);
+    addBest(sourceReviews.filter((review) => sentimentBucket(review) === "negative"));
+    addBest(sourceReviews.filter((review) => sentimentBucket(review) === "neutral"));
+    addBest(sourceReviews.filter((review) => sentimentBucket(review) === "positive"));
+  }
+
+  const months = Array.from(new Set(reviews.map((review) => review.date.slice(0, 7)))).sort();
+  for (const month of months) {
+    for (const source of VALID_REVIEW_SOURCES) {
+      addBest(reviews.filter((review) => review.date.startsWith(month) && normalizeSource(review.source) === source));
+    }
+  }
+
+  for (const keyword of SIGNAL_KEYWORDS) {
+    addBest(reviews.filter((review) => reviewContains(review, keyword)));
+  }
+
+  const remaining = [...reviews]
+    .filter((review) => !selected.has(review.id))
+    .sort(scoreReviews);
+  for (const review of remaining) {
+    if (selected.size >= limit) break;
+    selected.set(review.id, review);
+  }
+
+  return Array.from(selected.values()).slice(0, limit);
+}
+
+export function buildGroqChunks(reviews: Review[], chunkSize = GROQ_CHUNK_SIZE): Review[][] {
+  const chunks: Review[][] = [];
+  for (let i = 0; i < reviews.length; i += chunkSize) {
+    chunks.push(reviews.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+export function compactReviewForGroq(review: Review) {
+  return {
+    review_id: review.id,
+    source: normalizeSource(review.source),
+    date: review.date,
+    rating: review.rating,
+    snippet: sanitizeText(review.cleaned_text || review.text).slice(0, 420),
+  };
+}
+
+export function containsPII(text: string): boolean {
+  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) ||
+    /(?:\+?\d[\s-]?){8,}/.test(text) ||
+    /(^|\s)@[a-z0-9_]{3,}/i.test(text);
+}
+
+export function sanitizeText(text: string): string {
+  return text
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[removed]")
+    .replace(/(?:\+?\d[\s-]?){8,}/g, "[removed]")
+    .replace(/(^|\s)@[a-z0-9_]{3,}/gi, "$1[removed]");
+}
+
+export function validateAnalysisResult(analysis: any, reviews: Review[]): boolean {
+  if (!analysis || !Array.isArray(analysis.themes)) return false;
+  if (analysis.themes.length > 5) analysis.themes = analysis.themes.slice(0, 5);
+  if (!Array.isArray(analysis.representativeReviews)) analysis.representativeReviews = selectRepresentativeReviews(reviews);
+  analysis.representativeReviews = analysis.representativeReviews.slice(0, REPRESENTATIVE_REVIEW_LIMIT);
+  if (!analysis.problem_statement && !analysis.problemStatement) return false;
+  if (!analysis.business_opportunity && !analysis.opportunity) return false;
+
+  const reviewTexts = reviews.map((review) => sanitizeText(review.text));
+  const quotes = [
+    ...(Array.isArray(analysis.quotes) ? analysis.quotes : []),
+    ...(Array.isArray(analysis.representative_quotes) ? analysis.representative_quotes : []),
+    ...analysis.themes.flatMap((theme: any) => Array.isArray(theme.representative_quotes) ? theme.representative_quotes : []),
+  ].filter((quote: unknown): quote is string => typeof quote === "string");
+
+  const safeQuotes = quotes
+    .map(sanitizeText)
+    .filter((quote) => !containsPII(quote))
+    .filter((quote) => reviewTexts.some((text) => text.includes(quote) || quote.includes(text.slice(0, Math.min(60, text.length)))));
+
+  analysis.quotes = safeQuotes.slice(0, 8);
+  analysis.representative_quotes = safeQuotes.slice(0, 8);
+  return true;
 }
 
 export function buildReliableFallbackAnalysis(reviews: Review[], filters: ReviewFilters) {
@@ -219,6 +322,9 @@ export function shapeAnalysisResponse(analysis: any, reviews: Review[], filters:
     requestedDateRange: metadata.requestedDateRange,
     actualDateRange: metadata.actualDateRange,
     representativeReviews,
+    message: analysis.message,
+    analysisMode: isFallback ? "reliable_demo_analysis" : "groq_analysis",
+    analysis_mode: isFallback ? "reliable_demo_analysis" : "groq_analysis",
     analysis: {
       ...analysis,
       total_reviews_analyzed: metadata.totalReviews,
@@ -278,7 +384,21 @@ function scoreReviews(a: Review, b: Review): number {
 
 function scoreReview(review: Review): number {
   const text = `${review.title} ${review.text}`.toLowerCase();
-  return SIGNAL_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  const keywordScore = SIGNAL_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  const ratingScore = review.rating !== null && review.rating <= 2 ? 3 : review.rating === 3 ? 1 : 0;
+  return keywordScore + ratingScore;
+}
+
+function sentimentBucket(review: Review): "negative" | "neutral" | "positive" {
+  if (review.rating !== null) {
+    if (review.rating <= 2) return "negative";
+    if (review.rating >= 4) return "positive";
+  }
+  return "neutral";
+}
+
+function reviewContains(review: Review, keyword: string): boolean {
+  return `${review.title} ${review.text}`.toLowerCase().includes(keyword);
 }
 
 function startOfDay(date: string): Date {

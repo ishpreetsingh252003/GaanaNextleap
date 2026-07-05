@@ -67,6 +67,8 @@ export interface AnalysisResult {
   representativeReviews?: Review[];
   message?: string;
   is_fallback?: boolean;
+  analysisMode?: string;
+  analysis_mode?: string;
   _fallback_reason?: string;
 }
 
@@ -149,7 +151,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     if (err instanceof Error) {
       if (err.name === "AbortError") {
         throw new BackendError(
-          "Request timed out. The backend may be slow — try again or use fallback data.",
+          "This analysis is taking longer than expected. Try again, or run the full demo analysis for a reliable evaluation view.",
           408
         );
       }
@@ -182,16 +184,17 @@ export const analyzeReviews = (
   reviews: Review[],
   sources?: ReviewSource[],
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  collectSources?: boolean
 ) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
-    { method: "POST", body: JSON.stringify({ reviews, sources, startDate, endDate }) }
+    { method: "POST", body: JSON.stringify({ reviews, sources, startDate, endDate, collectSources }) }
   );
 
 /** Request the pre-generated fallback analysis (no Groq call) */
 export const loadFallbackAnalysis = (sources?: ReviewSource[], startDate?: string, endDate?: string) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
     { method: "POST", body: JSON.stringify({ useFallback: true, reviews: [], sources, startDate, endDate }) }
   );

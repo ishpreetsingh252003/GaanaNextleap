@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildGroqSample,
+  buildGroqChunks,
+  buildStratifiedReviewSample,
   buildReliableFallbackAnalysis,
   buildZeroMatchPayload,
+  containsPII,
   filterReviews,
   getFallbackReviewDataset,
   selectRepresentativeReviews,
+  validateAnalysisResult,
 } from "../src/services/analysisService";
 
 describe("analysisService", () => {
@@ -48,9 +52,19 @@ describe("analysisService", () => {
     expect(representative.length).toBeLessThanOrEqual(8);
   });
 
-  it("Groq sample helper caps reviews at 30", () => {
+  it("Groq sample helper caps reviews at staged sample limit", () => {
     const sample = buildGroqSample(dataset);
-    expect(sample.length).toBeLessThanOrEqual(30);
+    expect(sample.length).toBeLessThanOrEqual(90);
+  });
+
+  it("large review sets use stratified sampling and chunking", () => {
+    const sample = buildStratifiedReviewSample(dataset, 90);
+    const chunks = buildGroqChunks(sample, 50);
+
+    expect(sample.length).toBeLessThanOrEqual(90);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => chunk.length <= 50)).toBe(true);
+    expect(new Set(sample.map((review) => review.source)).size).toBeGreaterThan(1);
   });
 
   it("zero matching reviews returns friendly response", () => {
@@ -81,5 +95,25 @@ describe("analysisService", () => {
     expect(analysis.total_reviews_analyzed).toBe(filtered.length);
     expect(analysis.sourcesUsed).toEqual(["reddit"]);
     expect(analysis.representativeReviews.every((review) => review.source === "reddit")).toBe(true);
+  });
+
+  it("validation caps representative reviews and strips obvious PII quotes", () => {
+    const filtered = dataset.slice(0, 12);
+    const analysis = {
+      themes: [{
+        theme_name: "Repetition",
+        pain_point: "Same songs repeat",
+        representative_quotes: [filtered[0].text, "email me at user@example.com"],
+      }],
+      sentiment_summary: { positive: 0, neutral: 20, negative: 80 },
+      problem_statement: "Users struggle to find fresh music.",
+      business_opportunity: "Use better discovery controls.",
+      representativeReviews: filtered,
+      quotes: [filtered[0].text, "@listener wants support"],
+    };
+
+    expect(validateAnalysisResult(analysis, filtered)).toBe(true);
+    expect(analysis.representativeReviews.length).toBeLessThanOrEqual(8);
+    expect(analysis.quotes.every((quote: string) => !containsPII(quote))).toBe(true);
   });
 });

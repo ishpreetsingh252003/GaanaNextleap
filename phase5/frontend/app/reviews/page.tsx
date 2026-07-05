@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import {
-  scrapeReviews, analyzeReviews, loadFallbackAnalysis,
+  analyzeReviews, loadFallbackAnalysis,
   ReviewSource, ScrapeResponse, Review, AnalysisResult, BackendError,
 } from "../../lib/api";
-import { cleanReviews } from "../../lib/cleanReviews";
 
 const SOURCE_ICONS: Record<ReviewSource, string> = {
   google_play: "🤖", app_store: "🍎", reddit: "👽",
@@ -40,24 +39,30 @@ function buildSourceSummary(reviews: Review[]): Partial<Record<ReviewSource, num
   }, {});
 }
 
+function buildCoveredSourceSummary(sources?: ReviewSource[], reviews: Review[] = []): Partial<Record<ReviewSource, number>> {
+  if (!sources?.length) return buildSourceSummary(reviews);
+  return sources.reduce<Partial<Record<ReviewSource, number>>>((summary, source) => {
+    summary[source] = reviews.filter((review) => review.source === source).length || 1;
+    return summary;
+  }, {});
+}
+
 const INSIGHT_CARDS = [
   "Discovery works best when music feels fresh but still familiar.",
   "If recommendations feel random, users often return to old playlists.",
   "Mood, language, and activity are stronger discovery signals than genre alone.",
-  "Young listeners often discover songs through social platforms before streaming apps.",
-  "A good discovery system should let users control freshness, familiarity, language, and context.",
   "Repeat listening is not always bad — the problem is when users cannot easily find fresh alternatives.",
   "Freshness without relevance feels random. Familiarity without freshness feels repetitive.",
   "Regional music discovery is often harder when mainstream and viral content dominate feeds.",
 ];
 
 const LOAD_STEPS = [
-  "Collecting public feedback",
-  "Cleaning duplicate reviews",
-  "Filtering by selected date range",
-  "Finding repeated discovery complaints",
-  "Extracting representative quotes",
-  "Building opportunity areas",
+  "Collecting feedback signals",
+  "Filtering selected sources",
+  "Building evidence sample",
+  "Discovering repeated themes",
+  "Synthesizing product insights",
+  "Preparing opportunity areas",
 ];
 
 type ScrapeStatus = "idle" | "loading" | "success" | "error";
@@ -138,15 +143,18 @@ export default function ReviewsPage() {
     try {
       // Simulate a short delay for the loading screen to be appreciated
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const resp = await loadFallbackAnalysis(selectedSources as ReviewSource[], startDate, endDate);
+      const demoStartDate = "2026-01-01";
+      const demoEndDate = new Date().toISOString().split("T")[0];
+      const allSources = REVIEW_SOURCES.map((source) => source.id);
+      const resp = await loadFallbackAnalysis(allSources, demoStartDate, demoEndDate);
       clearTicker();
       const fallbackAnalysis = resp.analysis;
       const representativeReviews = resp.representativeReviews ?? fallbackAnalysis.representativeReviews ?? [];
       const mockResponse: ScrapeResponse = {
         success: true,
         total_reviews: resp.totalReviews ?? fallbackAnalysis.total_reviews_analyzed,
-        date_range: { from: startDate, to: endDate },
-        sources_summary: buildSourceSummary(representativeReviews),
+        date_range: { from: demoStartDate, to: demoEndDate },
+        sources_summary: buildCoveredSourceSummary(resp.sourcesUsed, representativeReviews),
         reviews: representativeReviews,
         message: resp.message ?? fallbackAnalysis.message,
       };
@@ -166,15 +174,16 @@ export default function ReviewsPage() {
     setStatus("loading"); setErrorMsg(""); setResult(null); setAnalysis(null); setCurrentPage(1);
     const clearTicker = startStepTicker();
     try {
-      const data = await scrapeReviews(selectedSources as ReviewSource[], startDate, endDate);
-      setLoadStep(3);
-      const resp = await analyzeReviews(data.reviews, selectedSources as ReviewSource[], startDate, endDate);
+      const resp = await analyzeReviews([], selectedSources as ReviewSource[], startDate, endDate, true);
       clearTicker(); 
       setLoadStep(5);
+      const representativeReviews = resp.representativeReviews ?? resp.analysis.representativeReviews ?? [];
       setResult({
-        ...data,
-        total_reviews: resp.totalReviews ?? resp.analysis.total_reviews_analyzed ?? data.total_reviews,
-        reviews: resp.representativeReviews ?? resp.analysis.representativeReviews ?? data.reviews.slice(0, 8),
+        success: true,
+        total_reviews: resp.totalReviews ?? resp.analysis.total_reviews_analyzed ?? representativeReviews.length,
+        date_range: { from: startDate, to: endDate },
+        sources_summary: buildCoveredSourceSummary(resp.sourcesUsed, representativeReviews),
+        reviews: representativeReviews,
         message: resp.message ?? resp.analysis.message,
       }); 
       setAnalysis(resp.analysis);
@@ -182,7 +191,7 @@ export default function ReviewsPage() {
       setStatus("success");
     } catch (err) {
       clearTicker();
-      const msg = err instanceof BackendError ? err.message : err instanceof Error ? err.message : "Scraping or analysis failed";
+      const msg = err instanceof BackendError ? err.message : err instanceof Error ? err.message : "Review analysis could not complete. Please run the full demo analysis for a reliable evaluation view.";
       setErrorMsg(msg); setStatus("error");
     }
   }
@@ -196,6 +205,7 @@ export default function ReviewsPage() {
     : [];
   const totalPages = Math.ceil(filteredReviews.length / PAGE_SIZE);
   const paged = filteredReviews.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const analysisMode = analysis?.analysisMode || (analysis as any)?.analysis_mode || (analysis?.is_fallback ? "Reliable analysis" : "Groq analysis");
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -208,7 +218,7 @@ export default function ReviewsPage() {
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="text-white font-semibold border-b-2 border-red-500">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Fresh Finds</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
@@ -276,39 +286,13 @@ export default function ReviewsPage() {
           <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <button onClick={handleFallbackLoad} disabled={status === "loading"}
               className="w-full sm:w-auto text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
-              Run Demo Analysis
+              Run Full Demo Analysis
             </button>
-            <span className="text-xs text-white/40 max-w-xs">Uses 100+ public-review-style feedback entries across multiple sources when live sources return limited results.</span>
+            <span className="text-xs text-white/40 max-w-xs">Uses 100+ public-review-style feedback entries across app reviews and public discussion sources.</span>
           </div>
-        </section>
 
-        {status === "loading" && (
-          <section className="grid md:grid-cols-2 gap-8">
-            <div>
-              <h2 className="font-semibold text-white mb-4">Analysis in Progress...</h2>
-              <ul className="space-y-3">
-                {LOAD_STEPS.map((step, i) => (
-                  <li key={step} className={`flex items-center gap-3 text-sm transition-opacity ${i <= loadStep ? 'opacity-100' : 'opacity-40'}`}>
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${i <= loadStep ? 'bg-red-500' : 'bg-white/10'}`}>
-                      {i < loadStep ? '✓' : <span className="animate-pulse">...</span>}
-                    </div>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                <h3 className="font-semibold text-white mb-3">Music Discovery Insights</h3>
-                <div className="relative h-32">
-                  {INSIGHT_CARDS.map((insight, i) => (
-                     <div key={i} className={`absolute inset-0 transition-opacity duration-500 ${i === currentInsight ? 'opacity-100' : 'opacity-0'}`}>
-                        <p className="text-white/80 leading-relaxed">“{insight}”</p>
-                     </div>
-                  ))}
-                </div>
-            </div>
-          </section>
-        )}
+          {status === "loading" && <LoadingInsights loadStep={loadStep} currentInsight={currentInsight} />}
+        </section>
 
         {status === "error" && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 mb-6 text-sm backdrop-blur-sm" role="alert">
@@ -337,7 +321,7 @@ export default function ReviewsPage() {
                 reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
               }} />
               <StatCard label="Date Range" value={`${new Date(result.date_range.from).toLocaleDateString("en-IN", { month: "short", year: "numeric" })} – ${new Date(result.date_range.to).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}`} color="purple" />
-              <StatCard label="Negative Sentiment" value={`${analysis.sentiment_summary?.negative ?? 0}%`} color="orange" />
+              <StatCard label="Analysis Mode" value={formatAnalysisMode(analysisMode)} color="orange" />
             </section>
 
             <section className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 backdrop-blur-sm">
@@ -368,7 +352,9 @@ export default function ReviewsPage() {
 
             <section className="space-y-3 mb-6">
               <p className="text-sm text-white/60 mb-4">
-                Showing representative reviews from {result.total_reviews} analyzed entries.
+                {formatAnalysisMode(analysisMode) === "Demo"
+                  ? `Showing representative reviews from ${result.total_reviews} demo feedback entries across all sources.`
+                  : `Showing representative reviews from ${result.total_reviews} entries matching your selected sources and date range.`}
               </p>
               {result.message && (
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-amber-300 backdrop-blur-sm">
@@ -393,9 +379,14 @@ export default function ReviewsPage() {
             <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-6 text-white text-center shadow-lg shadow-red-500/25">
               <p className="text-lg font-semibold mb-1">Analysis ready — view full insights</p>
               <p className="text-sm text-white/80 mb-4">Themes, pain points, sentiment, problem statement, and opportunity areas are waiting on the dashboard.</p>
-              <Link href="/dashboard" className="inline-block bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                Go to Analysis Dashboard →
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/dashboard" className="inline-block bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                  Go to Analysis Dashboard →
+                </Link>
+                <Link href="/discovery" className="inline-block bg-black/20 border border-white/40 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-black/30 transition-colors">
+                  Try Fresh Finds MVP
+                </Link>
+              </div>
             </div>
           </>
         )}
@@ -439,6 +430,45 @@ function StatCard({
     >
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-xs mt-0.5 opacity-80">{label}</p>
+    </div>
+  );
+}
+
+function formatAnalysisMode(mode: string) {
+  const normalized = mode.replace(/_/g, " ").toLowerCase();
+  if (normalized.includes("mixed")) return "Mixed";
+  if (normalized.includes("demo")) return "Demo";
+  if (normalized.includes("reliable")) return "Reliable";
+  if (normalized.includes("groq")) return "Live AI";
+  return "Analysis";
+}
+
+function LoadingInsights({ loadStep, currentInsight }: { loadStep: number; currentInsight: number }) {
+  return (
+    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-red-500/20 bg-black/30 p-4 sm:p-5 shadow-lg shadow-red-500/10">
+      <div>
+        <h2 className="font-semibold text-white mb-4">Analysis in progress</h2>
+        <ul className="space-y-3">
+          {LOAD_STEPS.map((step, i) => (
+            <li key={step} className={`flex items-center gap-3 text-sm transition-opacity ${i <= loadStep ? "opacity-100" : "opacity-40"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i <= loadStep ? "bg-gradient-to-r from-red-500 to-pink-500 text-white" : "bg-white/10 text-white/40"}`}>
+                {i < loadStep ? "✓" : i + 1}
+              </div>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 min-h-48">
+        <h3 className="font-semibold text-white mb-3 text-center">Music Discovery Insights</h3>
+        <div className="relative min-h-28">
+          {INSIGHT_CARDS.map((insight, i) => (
+            <div key={insight} className={`absolute inset-0 flex items-center transition-opacity duration-500 ${i === currentInsight ? "opacity-100" : "opacity-0"}`}>
+              <p className="text-white/80 leading-relaxed text-sm sm:text-base text-center">"{insight}"</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

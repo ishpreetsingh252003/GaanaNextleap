@@ -20,7 +20,7 @@ describe("GroqService", () => {
     process.env = { ...originalEnv };
     process.env.GROQ_API_KEY = "sk-test-valid-key";
     vi.clearAllMocks();
-    mockCreate.mockClear();
+    mockCreate.mockReset();
     vi.resetModules();
   });
 
@@ -231,6 +231,78 @@ describe("GroqService", () => {
       const a = getGroqService();
       const b = getGroqService();
       expect(a).toBe(b);
+    });
+  });
+
+  describe("staged review analysis", () => {
+    it("Stage A invalid JSON triggers a retry and then returns themes", async () => {
+      mockCreate
+        .mockResolvedValueOnce({ choices: [{ message: { content: "```json\nnot-json\n```" } }] })
+        .mockResolvedValueOnce({
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                themes: [{ label: "Repeat listening", description: "Same songs repeat", supportingReviewIds: ["r1"] }],
+                painPoints: [],
+                segmentInsights: [],
+                unmetNeeds: [],
+              }),
+            },
+          }],
+        });
+
+      const service = new GroqService();
+      const result = await service.discoverReviewThemes([{
+        id: "r1",
+        source: "google_play" as const,
+        rating: 2,
+        title: "Same songs",
+        text: "The same songs repeat every day.",
+        author: "Public feedback",
+        date: "2026-03-15",
+        url: null,
+        lang: "en",
+      }], { chunkIndex: 0, totalChunks: 1, totalReviews: 1 });
+
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+      expect(result.themes[0].label).toBe("Repeat listening");
+    });
+
+    it("Stage B returns parsed synthesis JSON", async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              summary: "Discovery is repetitive.",
+              total_reviews_analyzed: 1,
+              themes: [],
+              sentiment_summary: { positive: 0, neutral: 0, negative: 100 },
+              target_user_segment: "Music listeners",
+              problem_statement: "Users need fresher discovery.",
+              business_opportunity: "Improve retention with better controls.",
+            }),
+          },
+        }],
+      });
+
+      const service = new GroqService();
+      const result = await service.synthesizeReviewInsights([], [{
+        id: "r1",
+        source: "google_play" as const,
+        rating: 2,
+        title: "Same songs",
+        text: "The same songs repeat every day.",
+        author: "Public feedback",
+        date: "2026-03-15",
+        url: null,
+        lang: "en",
+      }], {
+        totalReviews: 1,
+        sourcesUsed: ["google_play"],
+        requestedDateRange: { startDate: "2026-01-01", endDate: "2026-07-05" },
+      });
+
+      expect(result.problem_statement || result.problemStatement).toContain("fresher discovery");
     });
   });
 });

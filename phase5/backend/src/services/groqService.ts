@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { Review } from "../types/review";
 import { MusicCatalogTrack } from "./musicCatalogService";
+import { compactReviewForGroq } from "./analysisService";
 
 /**
  * GroqService
@@ -78,6 +79,14 @@ class GroqService {
           `total: ${usage.total_tokens ?? "N/A"} tokens`
       );
     }
+  }
+
+  private parseJsonObject(content: string): any {
+    const cleaned = content
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    return JSON.parse(cleaned);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -167,6 +176,159 @@ Rules:
         throw new Error("Groq returned malformed JSON — fallback will be used.");
       }
     }, 3, "analyzeReviews");
+  }
+
+  async discoverReviewThemes(
+    reviews: Review[],
+    context: { chunkIndex: number; totalChunks: number; totalReviews: number }
+  ): Promise<any> {
+    const client = this.getClient();
+    const compactReviews = reviews.map(compactReviewForGroq);
+
+    const prompt = `You are Stage A of a review discovery engine for an Indian music streaming app.
+
+Use only the supplied compact feedback snippets. Discover repeated music-discovery themes without inventing evidence.
+
+CONTEXT:
+- Chunk: ${context.chunkIndex + 1} of ${context.totalChunks}
+- Total matched feedback entries: ${context.totalReviews}
+
+REVIEWS:
+${JSON.stringify(compactReviews)}
+
+Return JSON only:
+{
+  "themes": [
+    {
+      "label": "",
+      "description": "",
+      "supportingReviewIds": []
+    }
+  ],
+  "painPoints": [],
+  "segmentInsights": [],
+  "unmetNeeds": []
+}
+
+Rules:
+- Max 5 themes.
+- supportingReviewIds must be review_id values from the supplied reviews.
+- No markdown.
+- No text outside JSON.`;
+
+    return this.withRetry(async () => {
+      const response = await client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        max_tokens: 1800,
+      });
+
+      this.logTokenUsage(response, "llama-3.3-70b-versatile");
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("Empty response from Groq API.");
+
+      let parsed: any;
+      try {
+        parsed = this.parseJsonObject(content);
+      } catch {
+        const err: any = new Error("Stage A returned malformed JSON.");
+        err.status = 500;
+        throw err;
+      }
+      if (!Array.isArray(parsed.themes)) throw new Error("Stage A returned invalid themes.");
+      parsed.themes = parsed.themes.slice(0, 5);
+      return parsed;
+    }, 1, "discoverReviewThemes");
+  }
+
+  async synthesizeReviewInsights(
+    stageOutputs: any[],
+    evidenceReviews: Review[],
+    metadata: {
+      totalReviews: number;
+      sourcesUsed: string[];
+      requestedDateRange: { startDate: string | null; endDate: string | null };
+      repair?: boolean;
+    }
+  ): Promise<any> {
+    const client = this.getClient();
+    const evidence = evidenceReviews.slice(0, 24).map(compactReviewForGroq);
+
+    const prompt = `You are Stage B of a review discovery engine for an Indian music streaming app.
+
+Synthesize final product insights from Stage A themes and supplied evidence. Use only the supplied evidence.
+${metadata.repair ? "This is a repair pass: return complete valid JSON with all required fields." : ""}
+
+METADATA:
+${JSON.stringify({
+  totalReviews: metadata.totalReviews,
+  sourcesUsed: metadata.sourcesUsed,
+  requestedDateRange: metadata.requestedDateRange,
+})}
+
+STAGE_A_OUTPUTS:
+${JSON.stringify(stageOutputs)}
+
+SUPPORTING_EVIDENCE:
+${JSON.stringify(evidence)}
+
+Return JSON only:
+{
+  "summary": "",
+  "total_reviews_analyzed": ${metadata.totalReviews},
+  "themes": [
+    {
+      "theme_name": "",
+      "count": 0,
+      "description": "",
+      "pain_point": "",
+      "representative_quotes": [],
+      "opportunity": ""
+    }
+  ],
+  "sentiment_summary": { "positive": 0, "neutral": 0, "negative": 0 },
+  "target_user_segment": "",
+  "problem_statement": "",
+  "business_opportunity": "",
+  "quotes": [],
+  "segmentInsights": [],
+  "unmetNeeds": []
+}
+
+Rules:
+- Max 5 themes.
+- Quotes must be copied from supplied snippets only.
+- No PII.
+- No markdown.
+- No text outside JSON.`;
+
+    return this.withRetry(async () => {
+      const response = await client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        max_tokens: 2500,
+      });
+
+      this.logTokenUsage(response, "llama-3.3-70b-versatile");
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("Empty response from Groq API.");
+
+      let parsed: any;
+      try {
+        parsed = this.parseJsonObject(content);
+      } catch {
+        const err: any = new Error("Stage B returned malformed JSON.");
+        err.status = 500;
+        throw err;
+      }
+      if (!Array.isArray(parsed.themes)) throw new Error("Stage B returned invalid themes.");
+      parsed.themes = parsed.themes.slice(0, 5);
+      return parsed;
+    }, 1, metadata.repair ? "synthesizeReviewInsightsRepair" : "synthesizeReviewInsights");
   }
 
   // ─────────────────────────────────────────────────────────────────────────
