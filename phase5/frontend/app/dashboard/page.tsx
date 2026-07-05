@@ -29,13 +29,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky top-0 z-50">
         <Link href="/" className="font-bold text-lg flex items-center gap-2">
           <span className="text-2xl">🎵</span>
           <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
         </Link>
-        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
+        <nav className="flex flex-wrap justify-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="text-white font-semibold border-b-2 border-red-500">Dashboard</Link>
@@ -44,11 +44,11 @@ export default function DashboardPage() {
         </nav>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-12">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Review Analysis Dashboard</h1>
           <p className="text-white/60 text-sm">
-            AI-generated themes, pain points, sentiment, and opportunity areas from scraped user reviews.
+            AI-generated themes, pain points, sentiment, and opportunity areas from public feedback signals.
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         {analysis ? (
           <>
             {/* Metric cards */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <MetricCard label="Reviews Analysed" value={String(analysis.total_reviews_analyzed ?? "—")} />
               <MetricCard label="Themes Found" value={String(analysis.themes?.length ?? 0)} />
               <MetricCard label="Negative Sentiment" value={`${analysis.sentiment_summary?.negative ?? 0}%`} highlight />
@@ -114,7 +114,7 @@ export default function DashboardPage() {
               <p className="text-sm text-white/80 mb-4">
                 Fresh Finds lets users control mood, language, freshness, and avoid preferences — directly solving the issues surfaced above.
               </p>
-              <Link href="/discovery" className="inline-block bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+              <Link href="/discovery" className="inline-block w-full sm:w-auto bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                 Try Fresh Finds →
               </Link>
             </div>

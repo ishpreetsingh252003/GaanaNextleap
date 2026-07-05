@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   generateRecommendations, DiscoveryPreferences, RecommendationCard, BackendError,
 } from "../../lib/api";
@@ -9,8 +10,6 @@ import {
 const MOODS = ["Chill","Sad","Party","Gym","Travel","Focus","Romantic","Energetic"] as const;
 const LANGUAGES = ["Hindi","Punjabi","Tamil","Telugu","Bhojpuri","English","Mixed"] as const;
 const ACTIVITIES = ["Studying","Travelling","Gym","Late night","Party","Work","Relaxing"] as const;
-const FRESHNESS = ["Safe","Balanced","Fresh"] as const;
-
 const AVOID_OPTIONS = [
   { value: "avoid_repeated_artists", label: "Avoid repeated artists" },
   { value: "avoid_mainstream",       label: "Avoid mainstream / viral hits" },
@@ -32,6 +31,18 @@ const FRESHNESS_DESC: Record<string, string> = {
   Fresh:    "New releases, underrated gems, emerging artists",
 };
 
+function freshnessFromValue(value: number) {
+  if (value <= 35) return "Safe";
+  if (value <= 70) return "Balanced";
+  return "Fresh";
+}
+
+function valueForFreshness(value: string) {
+  if (value === "Safe") return 25;
+  if (value === "Fresh") return 85;
+  return 60;
+}
+
 const LOAD_STEPS = [
   "Reading your preferences…",
   "Exploring Indian music catalog…",
@@ -44,10 +55,20 @@ const LOAD_STEPS = [
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function DiscoveryPage() {
+  return (
+    <Suspense fallback={<DiscoveryLoading />}>
+      <DiscoveryContent />
+    </Suspense>
+  );
+}
+
+function DiscoveryContent() {
+  const searchParams = useSearchParams();
   const [mood, setMood]         = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
-  const [freshness, setFreshness] = useState("");
+  const [freshnessValue, setFreshnessValue] = useState(60);
+  const [freshness, setFreshness] = useState("Balanced");
   const [reference, setReference] = useState("");
   const [avoidList, setAvoidList] = useState<string[]>([]);
   const [status, setStatus]     = useState<Status>("idle");
@@ -57,6 +78,16 @@ export default function DiscoveryPage() {
   const [queryUsed, setQueryUsed] = useState("");
   const [isFallback, setIsFallback] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    const urlQuery = searchParams.get("query");
+    if (urlQuery) setReference(urlQuery);
+  }, [searchParams]);
+
+  function updateFreshness(value: number) {
+    setFreshnessValue(value);
+    setFreshness(freshnessFromValue(value));
+  }
 
   function toggleAvoid(v: string) {
     setAvoidList((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
@@ -73,8 +104,13 @@ export default function DiscoveryPage() {
     else if (lower.includes("late-night") || lower.includes("late night")) { setMood("Romantic"); setActivity("Late night"); }
     else if (lower.includes("travel")) { setMood("Travel"); setActivity("Travelling"); }
     else if (lower.includes("party")) { setMood("Party"); setActivity("Party"); }
-    if (lower.includes("fresh") || lower.includes("new") || lower.includes("not the same viral")) setFreshness("Fresh");
-    else setFreshness("Balanced");
+    if (lower.includes("fresh") || lower.includes("new") || lower.includes("not the same viral")) {
+      setFreshness("Fresh");
+      setFreshnessValue(85);
+    } else {
+      setFreshness("Balanced");
+      setFreshnessValue(60);
+    }
     if (lower.includes("not the same") || lower.includes("not arijit")) setAvoidList(["avoid_repeated_artists","avoid_overplayed"]);
     else if (lower.includes("mainstream") || lower.includes("less mainstream")) setAvoidList(["avoid_mainstream"]);
   }
@@ -106,7 +142,10 @@ export default function DiscoveryPage() {
 
     // Sync state so UI reflects what was sent
     if (overrides?.mood)      setMood(overrides.mood);
-    if (overrides?.freshness) setFreshness(overrides.freshness);
+    if (overrides?.freshness) {
+      setFreshness(overrides.freshness);
+      setFreshnessValue(valueForFreshness(overrides.freshness));
+    }
     if (overrides?.avoid)     setAvoidList(overrides.avoid);
 
     setStatus("loading"); setErrorMsg(""); setRecs([]);
@@ -129,13 +168,13 @@ export default function DiscoveryPage() {
   const isFormReady = mood && language && activity && freshness;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky top-0 z-50">
         <Link href="/" className="font-bold text-lg flex items-center gap-2">
           <span className="text-2xl">🎵</span>
           <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
         </Link>
-        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
+        <nav className="flex flex-wrap justify-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
@@ -144,7 +183,7 @@ export default function DiscoveryPage() {
         </nav>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Fresh Finds by Gaana</h1>
           <p className="text-white/60 text-sm">
@@ -220,15 +259,28 @@ export default function DiscoveryPage() {
           </FormCard>
 
           <FormCard label="Freshness" required>
-            <div className="flex gap-2">
-              {FRESHNESS.map((f) => (
-                <button key={f} onClick={() => setFreshness(f)} type="button"
-                  className={`flex-1 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${freshness === f ? "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500" : "bg-white/5 border-white/10 text-white/60 hover:border-white/20"}`}>
-                  {f}
-                </button>
-              ))}
+            <p className="text-xs text-white/50 mb-4">Control how new or familiar the recommendations should feel.</p>
+            <div className="space-y-3">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={freshnessValue}
+                onChange={(e) => updateFreshness(Number(e.target.value))}
+                className="w-full accent-red-500"
+                aria-label="Freshness"
+              />
+              <div className="flex justify-between text-xs text-white/50">
+                <span>Familiar</span>
+                <span>Balanced</span>
+                <span>Fresh</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{freshness}</p>
+                <p className="text-xs text-white/40">{freshnessValue}/100</p>
+              </div>
             </div>
-            <p className="text-xs text-white/40 mt-2">{FRESHNESS_DESC[freshness] || "Select freshness level"}</p>
+            <p className="text-xs text-white/40 mt-2">{FRESHNESS_DESC[freshness]}</p>
           </FormCard>
         </div>
 
@@ -288,7 +340,7 @@ export default function DiscoveryPage() {
             )}
 
             {/* Mini-player-inspired visual bar */}
-            <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-2xl p-4 mb-5 backdrop-blur-sm flex items-center gap-4">
+            <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-2xl p-4 mb-5 backdrop-blur-sm flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center text-xl shrink-0">
                 🎧
               </div>
@@ -296,7 +348,7 @@ export default function DiscoveryPage() {
                 <p className="text-sm font-semibold text-white">Now discovering: Fresh {language} {mood} Mix</p>
                 <p className="text-xs text-white/60">{recs.length} tracks • {freshness} freshness</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 self-start sm:self-auto">
                 <span className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-white/60">⏮</span>
                 <span className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-white/60">⏭</span>
               </div>
@@ -330,6 +382,16 @@ export default function DiscoveryPage() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function DiscoveryLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center px-4">
+      <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white/70">
+        Loading Fresh Finds...
+      </div>
     </div>
   );
 }
@@ -374,8 +436,8 @@ function RecCard({ rec, index }: { rec: RecommendationCard; index: number }) {
   const gradient = gradients[index % gradients.length];
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors backdrop-blur-sm">
-      <div className="flex items-start gap-4">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         {/* Gradient artwork placeholder */}
         <div className={`w-16 h-16 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-lg`}>
           🎵

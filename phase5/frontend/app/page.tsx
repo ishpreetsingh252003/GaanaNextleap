@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { checkHealth, BackendError } from "../lib/api";
 
 type Status = "checking" | "ok" | "error";
 
 export default function Home() {
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("checking");
   const [retryCount, setRetryCount] = useState(0);
+  const [query, setQuery] = useState("");
 
   const checkBackend = useCallback(async () => {
     try {
@@ -29,6 +32,11 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [checkBackend, retryCount, status]);
+
+  function handleSearchSubmit() {
+    const trimmed = query.trim();
+    router.push(trimmed ? `/discovery?query=${encodeURIComponent(trimmed)}` : "/discovery");
+  }
 
   const badge = {
     checking: (
@@ -55,13 +63,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <nav className="flex items-center justify-between px-4 sm:px-6 py-4 text-white/80 text-sm bg-black/20 backdrop-blur-sm sticky top-0 z-50" role="navigation" aria-label="Main navigation">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <nav className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-4 text-white/80 text-sm bg-black/20 backdrop-blur-sm sticky top-0 z-50" role="navigation" aria-label="Main navigation">
         <Link href="/" className="font-bold text-white text-lg tracking-tight flex items-center gap-2" aria-label="Gaana Discovery AI Home">
           <span className="text-2xl">🎵</span>
           <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
         </Link>
-        <div className="flex gap-3 sm:gap-5 text-xs sm:text-sm">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-5 text-xs sm:text-sm">
           <Link href="/" className="text-white font-semibold border-b-2 border-red-500">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
@@ -73,14 +81,24 @@ export default function Home() {
       <main className="container mx-auto px-4 py-8 sm:py-16">
         {/* Search-style hero bar */}
         <div className="max-w-3xl mx-auto mb-8">
-          <div className="relative">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
-              placeholder="Search mood, artist, language, or vibe"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearchSubmit();
+              }}
+              placeholder="Punjabi gym songs like Sidhu Moose Wala..."
               className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
-              readOnly
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50">🔍</span>
+            <button
+              type="button"
+              onClick={handleSearchSubmit}
+              className="w-full sm:w-auto shrink-0 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-4 rounded-full font-bold transition-all shadow-lg hover:shadow-red-500/25"
+            >
+              Try Fresh Finds
+            </button>
           </div>
         </div>
 
@@ -115,7 +133,7 @@ export default function Home() {
         {/* Large playlist-style hero card */}
         <div className="max-w-4xl mx-auto mb-10">
           <div className="bg-gradient-to-br from-red-500/20 to-pink-500/20 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-sm">
-            <div className="flex items-start gap-4 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
               <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl shadow-lg flex-shrink-0">
                 🎧
               </div>
@@ -137,17 +155,18 @@ export default function Home() {
         {/* Product flow cards */}
         <div className="max-w-4xl mx-auto mb-10">
           <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 text-center">Product Flow</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
-              { icon: "📡", label: "Review Engine", desc: "Analyze feedback" },
-              { icon: "📊", label: "Discovery Dashboard", desc: "View insights" },
-              { icon: "🎵", label: "Fresh Finds", desc: "Get recommendations" },
+              { icon: "📡", label: "Review Engine", desc: "Understand why users get stuck in repeat listening loops.", href: "/reviews" },
+              { icon: "🧭", label: "Discovery Signals", desc: "Convert feedback into mood, language, activity, and freshness signals.", href: "/about" },
+              { icon: "🎵", label: "Fresh Finds", desc: "Let users control how fresh, familiar, regional, or mainstream their mix should feel.", href: "/discovery" },
+              { icon: "📊", label: "Discovery Dashboard", desc: "Track themes, pain points, problem statement, and opportunity areas.", href: "/dashboard" },
             ].map((step, i) => (
-              <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center hover:bg-white/10 transition-colors">
+              <Link key={i} href={step.href} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center hover:bg-white/10 hover:border-red-500/30 transition-colors min-h-40 flex flex-col justify-center">
                 <span className="text-2xl sm:text-3xl block mb-2">{step.icon}</span>
                 <p className="text-xs sm:text-sm font-semibold mb-1">{step.label}</p>
                 <p className="text-xs text-white/50">{step.desc}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -210,7 +229,7 @@ export default function Home() {
             ].map((s) => (
               <span
                 key={s.label}
-                className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium text-white/70 hover:bg-white/10 transition-colors"
+                className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-xs font-medium text-white/70"
               >
                 {s.icon} {s.label}
               </span>
@@ -238,7 +257,7 @@ function Section({ title, items }: { title: string; items: string[] }) {
       </h3>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {items.map((item, i) => (
-          <div key={i} className="flex-shrink-0 bg-white/5 border border-white/10 rounded-xl px-4 py-3 hover:bg-white/10 transition-colors cursor-pointer">
+          <div key={i} className="flex-shrink-0 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
             <p className="text-xs sm:text-sm text-white/80">{item}</p>
           </div>
         ))}

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import {
-  getSources, scrapeReviews, analyzeReviews, loadFallbackAnalysis,
-  SourceInfo, ReviewSource, ScrapeResponse, Review, AnalysisResult, BackendError,
+  scrapeReviews, analyzeReviews, loadFallbackAnalysis,
+  ReviewSource, ScrapeResponse, Review, AnalysisResult, BackendError,
 } from "../../lib/api";
 import { cleanReviews } from "../../lib/cleanReviews";
 
@@ -20,13 +20,13 @@ const SOURCE_COLORS: Record<ReviewSource, string> = {
   web_news: "bg-blue-100 border-blue-300 text-blue-800",
   twitter_web: "bg-sky-100 border-sky-300 text-sky-800",
 };
-const DEFAULT_REVIEW_SOURCES: ReviewSource[] = [
-  "google_play",
-  "app_store",
-  "reddit",
-  "quora",
-  "web_news",
-  "twitter_web",
+const REVIEW_SOURCES: { id: ReviewSource; label: string }[] = [
+  { id: "google_play", label: "Google Play" },
+  { id: "app_store", label: "App Store" },
+  { id: "reddit", label: "Reddit" },
+  { id: "quora", label: "Quora" },
+  { id: "web_news", label: "Web / News" },
+  { id: "twitter_web", label: "Twitter / X" },
 ];
 function sourceLabel(s: ReviewSource): string {
   return { google_play:"Google Play",app_store:"App Store",reddit:"Reddit",
@@ -56,8 +56,9 @@ const LOAD_STEPS = [
 type ScrapeStatus = "idle" | "loading" | "success" | "error";
 
 export default function ReviewsPage() {
-  const [sources, setSources] = useState<SourceInfo[]>([]);
-  const [selected, setSelected] = useState<ReviewSource[]>(DEFAULT_REVIEW_SOURCES);
+  const [selectedSources, setSelectedSources] = useState<string[]>(
+    REVIEW_SOURCES.map((source) => source.id)
+  );
   const [status, setStatus] = useState<ScrapeStatus>("idle");
   const [loadStep, setLoadStep] = useState(0);
   const [result, setResult] = useState<ScrapeResponse | null>(null);
@@ -102,24 +103,8 @@ export default function ReviewsPage() {
     setEndDate(today.toISOString().split('T')[0]);
   }
 
-  useEffect(() => {
-    getSources()
-      .then((d) => { setSources(d.sources); setSelected(d.sources.map((s) => s.id)); })
-      .catch(() => {
-        const fb: SourceInfo[] = [
-          { id: "google_play", label: "Google Play Store", description: "" },
-          { id: "app_store", label: "Apple App Store", description: "" },
-          { id: "reddit", label: "Reddit", description: "" },
-          { id: "quora", label: "Quora", description: "" },
-          { id: "web_news", label: "Web / News", description: "" },
-          { id: "twitter_web", label: "Twitter / X", description: "" },
-        ];
-        setSources(fb); setSelected(fb.map((s) => s.id));
-      });
-  }, []);
-
   function toggleSource(id: ReviewSource) {
-    setSelected((p) => p.includes(id) ? p.filter((s) => s !== id) : [...p, id]);
+    setSelectedSources((p) => p.includes(id) ? p.filter((s) => s !== id) : [...p, id]);
   }
 
   // Step ticker during loading
@@ -177,11 +162,11 @@ export default function ReviewsPage() {
   }
 
   async function handleScrape() {
-    if (selected.length === 0 || dateError) return;
+    if (selectedSources.length === 0 || dateError) return;
     setStatus("loading"); setErrorMsg(""); setResult(null); setAnalysis(null); setCurrentPage(1);
     const clearTicker = startStepTicker();
     try {
-      const data = await scrapeReviews(selected, startDate, endDate);
+      const data = await scrapeReviews(selectedSources as ReviewSource[], startDate, endDate);
       setLoadStep(3);
       const resp = await analyzeReviews(data.reviews);
       clearTicker(); 
@@ -208,13 +193,13 @@ export default function ReviewsPage() {
   const paged = filteredReviews.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky top-0 z-50">
         <Link href="/" className="font-bold text-lg flex items-center gap-2">
           <span className="text-2xl">🎵</span>
           <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
         </Link>
-        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
+        <nav className="flex flex-wrap justify-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/80">
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="text-white font-semibold border-b-2 border-red-500">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
@@ -223,15 +208,15 @@ export default function ReviewsPage() {
         </nav>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-1">Review Engine</h1>
           <p className="text-white/60 text-sm">
-            Scrapes Gaana feedback from Google Play, App Store, Reddit, Quora, Web news, and Twitter — filtered to <strong>Jan 2026 → today</strong>. Runs AI theme analysis on the results.
+            Analyzes Gaana feedback signals from Google Play, App Store, Reddit, Quora, Web news, and Twitter — filtered to <strong>Jan 2026 → today</strong>. Runs AI theme analysis on the results.
           </p>
         </div>
 
-        <section ref={reviewsRef} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+        <section ref={reviewsRef} className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-6 backdrop-blur-sm">
           <div className="mb-6">
             <h2 className="font-semibold text-white mb-3">Select feedback date range</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
@@ -254,16 +239,16 @@ export default function ReviewsPage() {
           </div>
 
           <div className="border-t border-white/10 pt-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
               <h2 className="font-semibold text-white">Select Sources</h2>
               <div className="flex gap-3 text-xs">
-                <button onClick={() => setSelected(sources.map((s) => s.id))} className="text-red-400 hover:text-red-300 transition-colors">Select all</button>
-                <button onClick={() => setSelected([])} className="text-white/40 hover:text-white/60 transition-colors">Clear</button>
+                <button onClick={() => setSelectedSources(REVIEW_SOURCES.map((source) => source.id))} className="text-red-400 hover:text-red-300 transition-colors">Select all</button>
+                <button onClick={() => setSelectedSources([])} className="text-white/40 hover:text-white/60 transition-colors">Clear</button>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {sources.map((src) => {
-                const isOn = selected.includes(src.id);
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {REVIEW_SOURCES.map((src) => {
+                const isOn = selectedSources.includes(src.id);
                 return (
                   <button key={src.id} onClick={() => toggleSource(src.id)} aria-pressed={isOn}
                     className={`flex items-center gap-3 border rounded-2xl px-4 py-4 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${isOn ? "bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-500/50 text-white shadow-lg shadow-red-500/10" : "bg-white/5 border-white/10 text-white/50 hover:border-white/20 hover:bg-white/10"}`}>
@@ -276,16 +261,16 @@ export default function ReviewsPage() {
             </div>
           </div>
 
-          <button onClick={handleScrape} disabled={status === "loading" || selected.length === 0}
+          <button onClick={handleScrape} disabled={status === "loading" || selectedSources.length === 0}
             className="mt-6 w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500">
             {status === "loading"
               ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
-              : selected.length === 0 ? "Select at least one source to analyze" : "Analyze Selected Sources"}
+              : selectedSources.length > 0 ? "Analyze Selected Sources" : "Select at least one source to analyze"}
           </button>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
             <button onClick={handleFallbackLoad} disabled={status === "loading"}
-              className="text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
+              className="w-full sm:w-auto text-sm bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-40 backdrop-blur-sm">
               Run Demo Analysis
             </button>
             <span className="text-xs text-white/40 max-w-xs">Uses 100+ public-review-style feedback entries across multiple sources when live sources return limited results.</span>
@@ -322,7 +307,7 @@ export default function ReviewsPage() {
 
         {status === "error" && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5 mb-6 text-sm backdrop-blur-sm" role="alert">
-            <p className="font-semibold text-red-400 mb-2">⚠️ Scraping or analysis encountered an issue</p>
+            <p className="font-semibold text-red-400 mb-2">⚠️ Review fetching or analysis encountered an issue</p>
             <p className="text-red-300 mb-3">{errorMsg}</p>
             <p className="text-white/50 text-xs mb-3">Live fetching may fail due to public source restrictions or network issues. Use fallback review data to continue.</p>
             <button onClick={handleFallbackLoad} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-lg text-xs">
@@ -340,7 +325,7 @@ export default function ReviewsPage() {
               </div>
             )}
 
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard label="Reviews Analyzed" value={result.total_reviews.toString()} color="red" />
               <StatCard label="Sources Covered" value={Object.keys(result.sources_summary).length.toString()} color="pink" onClick={() => {
                 setFilterSource("all");
@@ -453,7 +438,7 @@ function ReviewCard({ review }: { review: Review }) {
   const MAX = 180;
   const isLong = review.text.length > MAX;
   return (
-    <article className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors backdrop-blur-sm">
+    <article className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-medium px-2.5 py-1 rounded-full border bg-white/10 border-white/20 text-white/80`}>

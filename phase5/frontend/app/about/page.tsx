@@ -46,13 +46,13 @@ const TECH_STACK = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50" role="banner">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <header className="bg-black/20 backdrop-blur-sm text-white px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sticky top-0 z-50" role="banner">
         <Link href="/" className="font-bold text-lg flex items-center gap-2">
           <span className="text-2xl">🎵</span>
           <span className="bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">Gaana Discovery AI</span>
         </Link>
-        <nav className="flex gap-3 sm:gap-5 text-xs sm:text-sm text-white/80" role="navigation" aria-label="Main navigation">
+        <nav className="flex flex-wrap justify-center gap-3 sm:gap-5 text-xs sm:text-sm text-white/80" role="navigation" aria-label="Main navigation">
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
@@ -61,7 +61,7 @@ export default function AboutPage() {
         </nav>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-12">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
         <h1 className="text-3xl font-bold mb-2">About Gaana Discovery AI</h1>
         <p className="text-white/60 mb-10">
           A product concept built to validate whether AI-powered, user-controlled music discovery can reduce repetitive listening on Indian streaming platforms.
@@ -78,7 +78,7 @@ export default function AboutPage() {
               <strong>The strategic goal</strong> is to increase meaningful music discovery and reduce repetitive listening behavior — validated through real public user feedback, not assumptions.
             </p>
             <p>
-              This project was built as a NextLeap graduation project to explore whether an AI-native, controllable discovery experience can address the recommendation fatigue that users report across app store reviews, Reddit, and online forums.
+              This product concept explores whether an AI-native, controllable discovery experience can address the recommendation fatigue that users report across app store reviews, Reddit, and online forums.
             </p>
           </div>
         </section>
@@ -144,7 +144,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold mb-4 text-white">📡 Data Sources</h2>
           <div className="space-y-3">
             {DATA_SOURCES.map((s) => (
-              <div key={s.name} className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 hover:bg-white/10 transition-colors backdrop-blur-sm">
+              <div key={s.name} className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 backdrop-blur-sm">
                 <span className="text-2xl mt-0.5" aria-hidden="true">{s.icon}</span>
                 <div>
                   <p className="font-semibold text-sm text-white">{s.name}</p>
@@ -252,7 +252,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold mb-3 text-white">🛠 Tech Stack</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {TECH_STACK.map((item) => (
-              <div key={item.label} className="bg-white/5 border border-white/10 rounded-xl p-3 hover:bg-white/10 transition-colors backdrop-blur-sm">
+              <div key={item.label} className="bg-white/5 border border-white/10 rounded-xl p-3 backdrop-blur-sm">
                 <p className="text-xs text-white/50">{item.label}</p>
                 <p className="text-sm font-medium text-white mt-0.5">{item.value}</p>
               </div>
