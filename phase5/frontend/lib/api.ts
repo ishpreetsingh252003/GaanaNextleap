@@ -84,8 +84,17 @@ export interface DiscoveryPreferences {
 export interface RecommendationCard {
   title: string;
   artist_or_type: string;
+  artist?: string;
+  album?: string;
+  artwork?: string;
+  previewUrl?: string;
+  externalUrl?: string;
+  source?: "itunes" | "demo";
+  type?: "track";
   language_mood_fit: string;
   why_this_fits: string;
+  bestFor?: string;
+  best_for?: string;
   how_fresh_this_is: string;
   freshness_label: "Safe" | "Balanced" | "Fresh";
   avoids_repeating: string;
@@ -96,6 +105,8 @@ export interface DiscoveryResponse {
   recommendations: RecommendationCard[];
   explanation: string;
   query_used: string;
+  matched_using?: "public_music_metadata";
+  message?: string;
   resolved_preferences?: Partial<DiscoveryPreferences>;
   inferred_preferences?: Partial<DiscoveryPreferences>;
   ui_preferences?: Partial<DiscoveryPreferences> & { queryType?: "reference" | "intent" };

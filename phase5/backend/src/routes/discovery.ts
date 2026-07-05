@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import getGroqService, { GroqService } from "../services/groqService";
 import { generateFallbackRecommendations } from "../data/fallbackRecommendations";
 import { inferDiscoveryIntent } from "../services/discoveryIntent";
+import { MusicCatalogTrack, searchMusicCatalog } from "../services/musicCatalogService";
 
 const router = Router();
 const groqService = getGroqService() as unknown as GroqService;
@@ -17,7 +18,7 @@ const VALID_AVOID_OPTIONS = [
   "avoid_sad",
   "avoid_slow",
 ];
-const GROQ_DISCOVERY_TIMEOUT_MS = 12_000;
+const GROQ_CATALOG_TIMEOUT_MS = 8_000;
 
 router.post("/discovery-agent", async (req: Request, res: Response) => {
   const { query, mood, language, activity, freshness, reference, avoid, refineAction } = req.body as {
@@ -92,48 +93,73 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
     });
   }
 
+  const catalogQuery = query || reference || inferred.reference || "";
+  let catalogTracks: MusicCatalogTrack[] = [];
   try {
-    console.log(
-      `[DiscoveryRoute] Generating recommendations - query=${query || ""}, mood=${preferences.mood}, language=${preferences.language}, activity=${preferences.activity}, freshness=${preferences.freshness}`
-    );
+    catalogTracks = await searchMusicCatalog(catalogQuery, {
+      language: preferences.language,
+      mood: preferences.mood,
+      freshness: preferences.freshness,
+      limit: 12,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[DiscoveryRoute] Catalog search unavailable; using fallback recommendations.", msg);
+  }
 
-    const result = await withTimeout(
-      groqService.generateRecommendations(preferences),
-      GROQ_DISCOVERY_TIMEOUT_MS
+  if (catalogTracks.length > 0) {
+    let catalogExplanation: any = null;
+    try {
+      catalogExplanation = await withTimeout(
+        groqService.explainCatalogMatches(catalogTracks, preferences),
+        GROQ_CATALOG_TIMEOUT_MS
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("[DiscoveryRoute] Catalog explanation unavailable; using simple explanations.", msg);
+    }
+
+    const recommendations = buildCatalogRecommendations(
+      catalogTracks,
+      preferences,
+      catalogExplanation?.matches ?? []
     );
 
     return res.json({
       success: true,
-      is_fallback: false,
+      recommendations,
+      explanation:
+        catalogExplanation?.explanation ??
+        "Matched using public music metadata and shaped into fresh discovery ideas.",
+      query_used: catalogQuery,
+      matched_using: "public_music_metadata",
       inferred_preferences: inferred,
       resolved_preferences: preferences,
       ui_preferences: uiPreferences,
-      ...result,
+      is_fallback: false,
     });
-  } catch (groqErr) {
-    const groqMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
-    console.warn("[DiscoveryRoute] AI generation unavailable; using fallback recommendations.", groqMsg);
+  }
 
-    try {
-      const fallback = generateFallbackRecommendations(preferences);
-      return res.json({
-        success: true,
-        ...fallback,
-        inferred_preferences: inferred,
-        resolved_preferences: preferences,
-        ui_preferences: uiPreferences,
-        is_fallback: true,
-        analysisMode: "reliable_demo_analysis",
-      });
-    } catch (fallbackErr) {
-      const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-      console.error("[DiscoveryRoute] Both AI and fallback recommendations failed:", fallbackMsg);
+  try {
+    const fallback = generateFallbackRecommendations(preferences);
+    return res.json({
+      success: true,
+      ...fallback,
+      inferred_preferences: inferred,
+      resolved_preferences: preferences,
+      ui_preferences: uiPreferences,
+      is_fallback: true,
+      analysisMode: "reliable_demo_analysis",
+      message: "Using reliable demo recommendations for this query.",
+    });
+  } catch (fallbackErr) {
+    const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+    console.error("[DiscoveryRoute] Fallback recommendations failed:", fallbackMsg);
 
-      return res.status(500).json({
-        error_code: "DISCOVERY_TEMPORARILY_UNAVAILABLE",
-        error_message: "Recommendations are temporarily unavailable. Please try again in a moment.",
-      });
-    }
+    return res.status(500).json({
+      error_code: "DISCOVERY_TEMPORARILY_UNAVAILABLE",
+      error_message: "Recommendations are temporarily unavailable. Please try again in a moment.",
+    });
   }
 });
 
@@ -149,6 +175,63 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
         clearTimeout(timeout);
         reject(err);
       });
+  });
+}
+
+function buildCatalogRecommendations(
+  tracks: MusicCatalogTrack[],
+  preferences: {
+    query?: string;
+    mood: string;
+    language: string;
+    activity: string;
+    freshness: string;
+    reference?: string;
+    avoid: string[];
+  },
+  explanations: Array<{
+    id?: string;
+    why_this_fits?: string;
+    best_for?: string;
+    bestFor?: string;
+    freshness_label?: "Safe" | "Balanced" | "Fresh";
+  }>
+) {
+  const explanationById = new Map(explanations.map((item) => [item.id, item]));
+
+  return tracks.slice(0, 10).map((track) => {
+    const explanation = explanationById.get(track.id);
+    const reference = preferences.reference || preferences.query;
+    const why =
+      explanation?.why_this_fits ||
+      (reference
+        ? `Matches "${reference}" as a reference query and gives a familiar starting point for discovery.`
+        : "Matches your discovery intent using public music metadata.");
+    const bestFor =
+      explanation?.best_for ||
+      explanation?.bestFor ||
+      "Use this as an anchor to explore fresher but still relevant music.";
+
+    return {
+      title: track.title,
+      artist_or_type: track.artist,
+      artist: track.artist,
+      album: track.album,
+      artwork: track.artwork,
+      previewUrl: track.previewUrl,
+      externalUrl: track.externalUrl,
+      source: "itunes",
+      type: "track",
+      language_mood_fit: `Matched using public music metadata${preferences.language !== "Mixed" ? ` for ${preferences.language}` : ""}.`,
+      why_this_fits: why,
+      bestFor,
+      best_for: bestFor,
+      how_fresh_this_is: preferences.freshness === "Fresh" ? "Public metadata match with a fresher discovery angle." : "Public metadata match for a familiar discovery anchor.",
+      freshness_label: explanation?.freshness_label || (preferences.freshness as "Safe" | "Balanced" | "Fresh"),
+      avoids_repeating: preferences.avoid.length
+        ? "Respects your avoid preferences where public metadata allows."
+        : "Use as a reference point; not a claim of full catalog playback.",
+    };
   });
 }
 

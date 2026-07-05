@@ -77,6 +77,7 @@ function DiscoveryContent() {
   const [explanation, setExplanation] = useState("");
   const [queryUsed, setQueryUsed] = useState("");
   const [referenceNote, setReferenceNote] = useState("");
+  const [matchedUsing, setMatchedUsing] = useState("");
   const [isFallback, setIsFallback] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -97,6 +98,7 @@ function DiscoveryContent() {
       setExplanation("");
       setQueryUsed("");
       setReferenceNote("");
+      setMatchedUsing("");
       setStatus("idle");
       setErrorMsg("");
     }
@@ -169,7 +171,7 @@ function DiscoveryContent() {
     }
     if (overrides?.avoid)     setAvoidList(overrides.avoid);
 
-    setStatus("loading"); setErrorMsg(""); setRecs([]);
+    setStatus("loading"); setErrorMsg(""); setRecs([]); setMatchedUsing("");
     const ticker = startTicker();
     try {
       const data = await generateRecommendations(prefs);
@@ -177,6 +179,7 @@ function DiscoveryContent() {
       setRecs(data.recommendations ?? []);
       setExplanation(data.explanation ?? "");
       setQueryUsed(data.query_used ?? "");
+      setMatchedUsing(data.matched_using ?? "");
       setIsFallback(data.is_fallback ?? false);
       const uiPreferences = data.ui_preferences;
       if (uiPreferences) {
@@ -266,8 +269,8 @@ function DiscoveryContent() {
 
         {/* Form */}
         <div className="grid grid-cols-1 gap-5 mb-5">
-          <FormCard label="Refine your mix">
-            <p className="text-xs text-white/50 mb-4">Optional — use these only if you want more control.</p>
+          <FormCard label="Optional refinements">
+            <p className="text-xs text-white/50 mb-4">Use these only if you want more control.</p>
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Mood</p>
@@ -381,6 +384,14 @@ function DiscoveryContent() {
 
         {status === "success" && recs.length > 0 && (
           <div className="mt-2">
+            <p className="text-xs text-white/50 mb-4">
+              Fresh Finds uses public music metadata and AI reasoning to turn a song, artist, mood, or language into fresher discovery ideas.
+            </p>
+            {matchedUsing === "public_music_metadata" && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-5 text-xs text-green-300">
+                Matched using public music metadata.
+              </div>
+            )}
             {isFallback && (
               <div className="bg-amber-500/10 border-l-4 border-amber-500 p-4 mb-5 rounded-r-xl text-xs text-amber-300 backdrop-blur-sm">
                 <strong>💡 Demo fallback recommendations shown.</strong>{" "}
@@ -483,24 +494,39 @@ function RecCard({ rec, index }: { rec: RecommendationCard; index: number }) {
     "from-orange-500 to-red-500",
   ];
   const gradient = gradients[index % gradients.length];
+  const sourceLabel = rec.source === "itunes" ? "iTunes" : "Demo";
+  const bestFor = rec.bestFor || rec.best_for;
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm hover:border-white/20 transition-colors">
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        {/* Gradient artwork placeholder */}
-        <div className={`w-16 h-16 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-lg`}>
-          🎵
-        </div>
+        {rec.artwork ? (
+          <img
+            src={rec.artwork}
+            alt={`${rec.title} artwork`}
+            className="w-full sm:w-24 sm:h-24 aspect-square object-cover rounded-xl shadow-lg"
+          />
+        ) : (
+          <div className={`w-full sm:w-24 sm:h-24 aspect-square bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-3xl shrink-0 shadow-lg`}>
+            🎵
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div>
               <h3 className="text-base font-bold text-white leading-tight">{rec.title}</h3>
-              <p className="text-sm text-white/60 mt-0.5">{rec.artist_or_type}</p>
+              <p className="text-sm text-white/60 mt-0.5">{rec.artist || rec.artist_or_type}</p>
+              {rec.album && <p className="text-xs text-white/40 mt-0.5">{rec.album}</p>}
             </div>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border shrink-0 ${FRESHNESS_BADGE[rec.freshness_label] ?? "bg-white/10 text-white/60 border-white/20"}`}>
-              {rec.freshness_label}
-            </span>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-white/10 text-white/70 border-white/20">
+                {sourceLabel}
+              </span>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${FRESHNESS_BADGE[rec.freshness_label] ?? "bg-white/10 text-white/60 border-white/20"}`}>
+                {rec.freshness_label}
+              </span>
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-2 text-sm mb-2">
@@ -509,19 +535,30 @@ function RecCard({ rec, index }: { rec: RecommendationCard; index: number }) {
               <p className="text-white/70 leading-relaxed text-xs">{rec.why_this_fits}</p>
             </div>
             <div className="bg-white/5 rounded-lg p-2.5">
-              <p className="text-xs font-semibold text-pink-400 uppercase tracking-wide mb-1">Language &amp; mood fit</p>
-              <p className="text-white/70 leading-relaxed text-xs">{rec.language_mood_fit}</p>
+              <p className="text-xs font-semibold text-pink-400 uppercase tracking-wide mb-1">Best for</p>
+              <p className="text-white/70 leading-relaxed text-xs">{bestFor || rec.language_mood_fit}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="bg-red-500/10 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-full">
               <strong>Freshness:</strong> {rec.how_fresh_this_is}
             </span>
-            {rec.avoids_repeating && (
-              <span className="bg-orange-500/10 text-orange-400 border border-orange-500/30 px-2.5 py-1 rounded-full">
-                <strong>Avoids:</strong> {rec.avoids_repeating}
-              </span>
+            {rec.previewUrl && (
+              <div className="w-full mt-2">
+                <p className="text-xs font-semibold text-white/60 mb-1">30-sec Preview</p>
+                <audio controls preload="none" src={rec.previewUrl} className="w-full h-9" />
+              </div>
+            )}
+            {rec.externalUrl && (
+              <a
+                href={rec.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-red-300 hover:text-red-200 border border-red-500/30 rounded-full px-3 py-1"
+              >
+                Open on iTunes
+              </a>
             )}
           </div>
         </div>

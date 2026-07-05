@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { Review } from "../types/review";
+import { MusicCatalogTrack } from "./musicCatalogService";
 
 /**
  * GroqService
@@ -285,6 +286,76 @@ Return this EXACT JSON structure:
 
       return result;
     }, 3, "generateRecommendations");
+  }
+
+  async explainCatalogMatches(
+    tracks: MusicCatalogTrack[],
+    preferences: {
+      query?: string;
+      mood: string;
+      language: string;
+      activity: string;
+      freshness: string;
+      reference?: string;
+      avoid: string[];
+      refineAction?: string;
+    }
+  ): Promise<any> {
+    const client = this.getClient();
+    const compactTracks = tracks.slice(0, 10).map((track) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+    }));
+
+    const prompt = `You are helping explain public music metadata matches for an Indian music discovery MVP.
+
+Use ONLY these catalog tracks. Do not invent tracks, playback, or catalog availability.
+
+USER CONTEXT:
+- Query/reference: ${preferences.query || preferences.reference || "none"}
+- Mood: ${preferences.mood}
+- Language: ${preferences.language}
+- Activity: ${preferences.activity}
+- Freshness: ${preferences.freshness}
+- Avoid: ${preferences.avoid.join(", ") || "none"}
+- Refine action: ${preferences.refineAction || "none"}
+
+CATALOG TRACKS:
+${JSON.stringify(compactTracks)}
+
+Return only JSON:
+{
+  "explanation": "One short sentence about the discovery approach.",
+  "matches": [
+    {
+      "id": "same id from catalog",
+      "why_this_fits": "One sentence grounded in the query/reference.",
+      "best_for": "Short use case such as familiar anchor, fresh alternative, late-night discovery.",
+      "freshness_label": "Safe" | "Balanced" | "Fresh"
+    }
+  ]
+}`;
+
+    return this.withRetry(async () => {
+      const response = await client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.35,
+        response_format: { type: "json_object" },
+        max_tokens: 1200,
+      });
+
+      this.logTokenUsage(response, "llama-3.3-70b-versatile");
+
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("Empty response from Groq API.");
+
+      const parsed = JSON.parse(content);
+      if (!Array.isArray(parsed.matches)) parsed.matches = [];
+      return parsed;
+    }, 1, "explainCatalogMatches");
   }
 }
 
