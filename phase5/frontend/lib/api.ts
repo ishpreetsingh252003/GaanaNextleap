@@ -71,12 +71,14 @@ export interface AnalysisResult {
 }
 
 export interface DiscoveryPreferences {
-  mood: string;
-  language: string;
-  activity: string;
-  freshness: string;
+  query?: string;
+  mood?: string;
+  language?: string;
+  activity?: string;
+  freshness?: string;
   reference?: string;
   avoid: string[];
+  refineAction?: string;
 }
 
 export interface RecommendationCard {
@@ -94,6 +96,8 @@ export interface DiscoveryResponse {
   recommendations: RecommendationCard[];
   explanation: string;
   query_used: string;
+  resolved_preferences?: Partial<DiscoveryPreferences>;
+  inferred_preferences?: Partial<DiscoveryPreferences>;
   is_fallback?: boolean;
   _fallback_reason?: string;
 }

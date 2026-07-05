@@ -99,14 +99,16 @@ function buildFreshnessDescription(track: CatalogTrack): string {
  * Returns 8–10 cards matching preferences.
  */
 export function generateFallbackRecommendations(preferences: {
+  query?: string;
   mood: string;
   language: string;
   activity: string;
   freshness: string;
   reference?: string;
   avoid: string[];
+  refineAction?: string;
 }): FallbackRecommendationResult {
-  const { mood, language, activity, freshness, reference, avoid } = preferences;
+  const { query, mood, language, activity, freshness, reference, avoid } = preferences;
 
   let matches = filterCatalog({ language, mood, activity, freshness, avoid });
 
@@ -129,8 +131,13 @@ export function generateFallbackRecommendations(preferences: {
     }
   }
 
-  // Shuffle for variety, then take 8-10
-  const shuffled = matches.sort(() => Math.random() - 0.5).slice(0, 10);
+  const queryText = `${query ?? ""} ${reference ?? ""}`.trim().toLowerCase();
+  if (queryText) {
+    matches = matches.sort((a, b) => scoreTrack(b, queryText) - scoreTrack(a, queryText));
+  }
+
+  // Keep variety while preserving query relevance when available, then take 8-10
+  const shuffled = queryText ? matches.slice(0, 10) : matches.sort(() => Math.random() - 0.5).slice(0, 10);
   const count = Math.max(8, shuffled.length);
   const final = shuffled.slice(0, count);
 
@@ -145,12 +152,13 @@ export function generateFallbackRecommendations(preferences: {
   }));
 
   const explanation =
-    `Showing ${recommendations.length} ${language} recommendations for ${mood} mood during ${activity}. ` +
+    `Showing ${recommendations.length} recommendations using "${query || reference || `${mood} ${language}`}" as the discovery starting point. ` +
+    `${language} language, ${mood} mood, ${activity} context. ` +
     `Freshness: ${freshness}. ` +
     (reference ? `Style inspired by: ${reference}. ` : "") +
     `Note: Generated from sample public music metadata for demo reliability. Does not represent Gaana's full catalog.`;
 
-  const query_used = `${mood} ${language} songs for ${activity}${reference ? ` like ${reference}` : ""}${avoid.length ? ` (avoiding: ${avoid.join(", ")})` : ""}`;
+  const query_used = query || `${mood} ${language} songs for ${activity}${reference ? ` like ${reference}` : ""}${avoid.length ? ` (avoiding: ${avoid.join(", ")})` : ""}`;
 
   return {
     recommendations,
@@ -158,4 +166,21 @@ export function generateFallbackRecommendations(preferences: {
     query_used,
     is_fallback: true,
   };
+}
+
+function scoreTrack(track: CatalogTrack, queryText: string): number {
+  const haystack = [
+    track.title,
+    track.artist,
+    track.language,
+    track.region,
+    ...track.moods,
+    ...track.activities,
+    ...track.tags,
+  ].join(" ").toLowerCase();
+
+  return queryText
+    .split(/\s+/)
+    .filter((token) => token.length > 2)
+    .reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
 }

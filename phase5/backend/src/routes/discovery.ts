@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import getGroqService, { GroqService } from "../services/groqService";
 import { generateFallbackRecommendations } from "../data/fallbackRecommendations";
+import { inferDiscoveryIntent } from "../services/discoveryIntent";
 
 const router = Router();
 const groqService = getGroqService() as unknown as GroqService;
@@ -19,34 +20,49 @@ const VALID_AVOID_OPTIONS = [
 const GROQ_DISCOVERY_TIMEOUT_MS = 12_000;
 
 router.post("/discovery-agent", async (req: Request, res: Response) => {
-  const { mood, language, activity, freshness, reference, avoid, refineAction } = req.body;
+  const { query, mood, language, activity, freshness, reference, avoid, refineAction } = req.body as {
+    query?: string;
+    mood?: string;
+    language?: string;
+    activity?: string;
+    freshness?: string;
+    reference?: string;
+    avoid?: string[];
+    refineAction?: string;
+  };
 
-  // ── Validation ──────────────────────────────────────────────────────────
-  if (!mood || !language || !activity || !freshness) {
-    return res.status(400).json({
-      error_code: "MISSING_REQUIRED_FIELDS",
-      error_message: "Missing required fields: mood, language, activity, freshness",
-    });
-  }
-  if (!VALID_MOODS.includes(mood)) {
+  const inferred = inferDiscoveryIntent(query || reference || "");
+  const mergedAvoid = Array.from(new Set([...(inferred.avoid ?? []), ...(avoid ?? [])]));
+  const preferences = {
+    query,
+    mood: mood || inferred.mood || "Chill",
+    language: language || inferred.language || "Mixed",
+    activity: activity || inferred.activity || "Relaxing",
+    freshness: freshness || inferred.freshness || "Balanced",
+    reference: reference || inferred.reference || query,
+    avoid: mergedAvoid,
+    refineAction,
+  };
+
+  if (!VALID_MOODS.includes(preferences.mood)) {
     return res.status(400).json({
       error_code: "INVALID_MOOD",
       error_message: `Invalid mood. Must be one of: ${VALID_MOODS.join(", ")}`,
     });
   }
-  if (!VALID_LANGUAGES.includes(language)) {
+  if (!VALID_LANGUAGES.includes(preferences.language)) {
     return res.status(400).json({
       error_code: "INVALID_LANGUAGE",
       error_message: `Invalid language. Must be one of: ${VALID_LANGUAGES.join(", ")}`,
     });
   }
-  if (!VALID_ACTIVITIES.includes(activity)) {
+  if (!VALID_ACTIVITIES.includes(preferences.activity)) {
     return res.status(400).json({
       error_code: "INVALID_ACTIVITY",
       error_message: `Invalid activity. Must be one of: ${VALID_ACTIVITIES.join(", ")}`,
     });
   }
-  if (!VALID_FRESHNESS.includes(freshness)) {
+  if (!VALID_FRESHNESS.includes(preferences.freshness)) {
     return res.status(400).json({
       error_code: "INVALID_FRESHNESS",
       error_message: `Invalid freshness. Must be one of: ${VALID_FRESHNESS.join(", ")}`,
@@ -58,30 +74,17 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
       error_message: "Avoid must be an array of strings",
     });
   }
-  if (avoid) {
-    const invalidAvoid = (avoid as string[]).filter((a) => !VALID_AVOID_OPTIONS.includes(a));
-    if (invalidAvoid.length > 0) {
-      return res.status(400).json({
-        error_code: "INVALID_AVOID_OPTIONS",
-        error_message: `Invalid avoid options: ${invalidAvoid.join(", ")}. Valid: ${VALID_AVOID_OPTIONS.join(", ")}`,
-      });
-    }
+  const invalidAvoid = mergedAvoid.filter((a) => !VALID_AVOID_OPTIONS.includes(a));
+  if (invalidAvoid.length > 0) {
+    return res.status(400).json({
+      error_code: "INVALID_AVOID_OPTIONS",
+      error_message: `Invalid avoid options: ${invalidAvoid.join(", ")}. Valid: ${VALID_AVOID_OPTIONS.join(", ")}`,
+    });
   }
 
-  const preferences = {
-    mood: mood as string,
-    language: language as string,
-    activity: activity as string,
-    freshness: freshness as string,
-    reference: reference as string | undefined,
-    avoid: (avoid as string[]) || [],
-    refineAction: refineAction as string | undefined,
-  };
-
-  // ── Try Groq first ───────────────────────────────────────────────────────
   try {
     console.log(
-      `[DiscoveryRoute] Generating recommendations — mood=${mood}, language=${language}, activity=${activity}, freshness=${freshness}`
+      `[DiscoveryRoute] Generating recommendations - query=${query || ""}, mood=${preferences.mood}, language=${preferences.language}, activity=${preferences.activity}, freshness=${preferences.freshness}`
     );
 
     const result = await withTimeout(
@@ -89,30 +92,30 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
       GROQ_DISCOVERY_TIMEOUT_MS
     );
 
-    console.log("[DiscoveryRoute] Groq recommendations generated successfully");
     return res.json({
       success: true,
       is_fallback: false,
+      inferred_preferences: inferred,
+      resolved_preferences: preferences,
       ...result,
     });
   } catch (groqErr) {
     const groqMsg = groqErr instanceof Error ? groqErr.message : String(groqErr);
-    console.warn("[DiscoveryRoute] Groq failed, using sample catalog fallback:", groqMsg);
+    console.warn("[DiscoveryRoute] AI generation unavailable; using fallback recommendations.", groqMsg);
 
-    // ── Fallback to sample catalog ─────────────────────────────────────────
     try {
       const fallback = generateFallbackRecommendations(preferences);
-      console.log(`[DiscoveryRoute] Fallback returned ${fallback.recommendations.length} recommendations`);
-
       return res.json({
         success: true,
         ...fallback,
+        inferred_preferences: inferred,
+        resolved_preferences: preferences,
         is_fallback: true,
         analysisMode: "reliable_demo_analysis",
       });
     } catch (fallbackErr) {
       const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-      console.error("[DiscoveryRoute] Both Groq and fallback failed:", fallbackMsg);
+      console.error("[DiscoveryRoute] Both AI and fallback recommendations failed:", fallbackMsg);
 
       return res.status(500).json({
         error_code: "DISCOVERY_TEMPORARILY_UNAVAILABLE",

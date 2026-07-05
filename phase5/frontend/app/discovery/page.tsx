@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   generateRecommendations, DiscoveryPreferences, RecommendationCard, BackendError,
@@ -64,6 +64,7 @@ export default function DiscoveryPage() {
 
 function DiscoveryContent() {
   const searchParams = useSearchParams();
+  const autoSearchKeyRef = useRef("");
   const [mood, setMood]         = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
@@ -83,6 +84,27 @@ function DiscoveryContent() {
     const urlQuery = searchParams.get("query");
     if (urlQuery) setReference(urlQuery);
   }, [searchParams]);
+
+  function resetOptionalFilters() {
+    setMood("");
+    setLanguage("");
+    setActivity("");
+    setAvoidList([]);
+    setFreshness("Balanced");
+    setFreshnessValue(60);
+  }
+
+  function handleReferenceChange(value: string) {
+    setReference(value);
+    if (value.trim() === "") {
+      resetOptionalFilters();
+      setRecs([]);
+      setExplanation("");
+      setQueryUsed("");
+      setStatus("idle");
+      setErrorMsg("");
+    }
+  }
 
   function updateFreshness(value: number) {
     setFreshnessValue(value);
@@ -126,17 +148,20 @@ function DiscoveryContent() {
   }
 
   const runGenerate = useCallback(async (overrides?: Partial<DiscoveryPreferences>) => {
+    const nextReference = overrides?.reference !== undefined ? overrides.reference : reference || undefined;
     const prefs: DiscoveryPreferences = {
+      query: overrides?.query ?? nextReference,
       mood: overrides?.mood ?? mood,
       language: overrides?.language ?? language,
       activity: overrides?.activity ?? activity,
       freshness: overrides?.freshness ?? freshness,
-      reference: overrides?.reference !== undefined ? overrides.reference : reference || undefined,
+      reference: nextReference,
       avoid: overrides?.avoid ?? avoidList,
+      refineAction: overrides?.refineAction,
     };
 
-    if (!prefs.mood || !prefs.language || !prefs.activity || !prefs.freshness) {
-      setErrorMsg("Please fill in all required fields: Mood, Language, Activity, and Freshness.");
+    if (!prefs.query && !prefs.mood && !prefs.language && !prefs.activity) {
+      setErrorMsg("Start with a song, artist, mood, language, or pick a refinement.");
       return;
     }
 
@@ -157,6 +182,15 @@ function DiscoveryContent() {
       setExplanation(data.explanation ?? "");
       setQueryUsed(data.query_used ?? "");
       setIsFallback(data.is_fallback ?? false);
+      if (data.resolved_preferences) {
+        if (data.resolved_preferences.mood) setMood(data.resolved_preferences.mood);
+        if (data.resolved_preferences.language) setLanguage(data.resolved_preferences.language);
+        if (data.resolved_preferences.activity) setActivity(data.resolved_preferences.activity);
+        if (data.resolved_preferences.freshness) {
+          setFreshness(data.resolved_preferences.freshness);
+          setFreshnessValue(valueForFreshness(data.resolved_preferences.freshness));
+        }
+      }
       setStatus("success");
     } catch (err) {
       clearInterval(ticker);
@@ -165,7 +199,17 @@ function DiscoveryContent() {
     }
   }, [mood, language, activity, freshness, reference, avoidList]);
 
-  const isFormReady = mood && language && activity && freshness;
+  useEffect(() => {
+    const urlQuery = searchParams.get("query")?.trim();
+    const autoSearch = searchParams.get("autoSearch") === "true";
+    if (!urlQuery || !autoSearch) return;
+
+    const key = `${urlQuery}:${autoSearch}`;
+    if (autoSearchKeyRef.current === key) return;
+    autoSearchKeyRef.current = key;
+    setReference(urlQuery);
+    runGenerate({ query: urlQuery, reference: urlQuery });
+  }, [runGenerate, searchParams]);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -193,16 +237,23 @@ function DiscoveryContent() {
 
         {/* Big search/prompt bar */}
         <div className="mb-6">
+          <label htmlFor="discovery-query" className="text-sm font-semibold text-white mb-2 block">
+            Start with a song, artist, mood, or language
+          </label>
           <div className="relative">
             <input
+              id="discovery-query"
               type="text"
               value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Punjabi gym songs like Sidhu Moose Wala, but fresher and less viral"
+              onChange={(e) => handleReferenceChange(e.target.value)}
+              placeholder="Arijit Singh for late-night Hindi songs, but fresher"
               className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50">🔍</span>
           </div>
+          <p className="text-xs text-white/50 mt-2">
+            Fresh Finds uses your input as a reference point and expands it into music that feels fresh, not random.
+          </p>
         </div>
 
         {/* Demo examples */}
@@ -220,7 +271,8 @@ function DiscoveryContent() {
 
         {/* Form */}
         <div className="grid grid-cols-1 gap-5 mb-5">
-          <FormCard label="Select Your Vibe" required>
+          <FormCard label="Refine your mix">
+            <p className="text-xs text-white/50 mb-4">Optional — use these only if you want more control.</p>
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">Mood</p>
@@ -258,7 +310,7 @@ function DiscoveryContent() {
             </div>
           </FormCard>
 
-          <FormCard label="Freshness" required>
+          <FormCard label="Freshness">
             <p className="text-xs text-white/50 mb-4">Control how new or familiar the recommendations should feel.</p>
             <div className="space-y-3">
               <input
@@ -286,7 +338,7 @@ function DiscoveryContent() {
 
         <div className="grid sm:grid-cols-2 gap-5 mb-6">
           <FormCard label="Reference artist or song (optional)">
-            <input type="text" value={reference} onChange={(e) => setReference(e.target.value)}
+            <input type="text" value={reference} onChange={(e) => handleReferenceChange(e.target.value)}
               placeholder="e.g. Sidhu Moose Wala, Arijit Singh, 'Kesariya'"
               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 backdrop-blur-sm" />
             <p className="text-xs text-white/40 mt-1.5">We'll find similar vibe — not the exact same songs.</p>
@@ -304,16 +356,12 @@ function DiscoveryContent() {
           </FormCard>
         </div>
 
-        <button onClick={() => runGenerate()} disabled={status === "loading" || !isFormReady}
+        <button onClick={() => runGenerate()} disabled={status === "loading"}
           className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500 mb-3">
           {status === "loading"
             ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
             : "Generate Discovery Mix"}
         </button>
-
-        {!isFormReady && (
-          <p className="text-xs text-center text-white/40 mb-4">Select Mood, Language, Activity, and Freshness to generate recommendations.</p>
-        )}
 
         <p className="text-xs text-white/40 text-center mb-6">
           This MVP uses publicly available music metadata and AI inference for demonstration.
@@ -325,7 +373,7 @@ function DiscoveryContent() {
             <p className="font-semibold text-red-400 mb-1">⚠️ Generation issue</p>
             <p className="text-red-300">{errorMsg}</p>
             <p className="text-white/50 text-xs mt-2">
-              AI generation failed temporarily. If GROQ_API_KEY is configured, check the backend logs. Otherwise a sample catalog fallback will be used automatically on retry.
+              Recommendations are temporarily unavailable. Try again in a moment or adjust your query.
             </p>
           </div>
         )}

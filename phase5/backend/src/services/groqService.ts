@@ -173,15 +173,17 @@ Rules:
   // ─────────────────────────────────────────────────────────────────────────
 
   async generateRecommendations(preferences: {
+    query?: string;
     mood: string;
     language: string;
     activity: string;
     freshness: string;
     reference?: string;
     avoid: string[];
+    refineAction?: string;
   }): Promise<any> {
     const client = this.getClient();
-    const { mood, language, activity, freshness, reference, avoid } = preferences;
+    const { query, mood, language, activity, freshness, reference, avoid, refineAction } = preferences;
 
     // Translate avoid codes to natural language for the prompt
     const avoidDescriptions: Record<string, string> = {
@@ -207,11 +209,13 @@ Rules:
 Generate exactly 8-10 personalised music recommendations based on the user's preferences.
 
 USER PREFERENCES:
+- Open-ended discovery query: ${query || reference || "No free-text query provided"}
 - Mood: ${mood}
 - Language: ${language} (prioritise this language; include cross-language only if it perfectly fits)
 - Activity context: ${activity}
 - Freshness level: ${freshness} — ${freshnessGuide[freshness]}
 ${reference ? `- Reference artist/song: ${reference} (find similar vibe but NOT the same tracks)` : ""}
+- Refinement action: ${refineAction || "none"}
 - Avoid preferences: ${avoidText}
 
 IMPORTANT RULES:

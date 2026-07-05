@@ -35,7 +35,7 @@ export default function Home() {
 
   function handleSearchSubmit() {
     const trimmed = query.trim();
-    router.push(trimmed ? `/discovery?query=${encodeURIComponent(trimmed)}` : "/discovery");
+    router.push(trimmed ? `/discovery?query=${encodeURIComponent(trimmed)}&autoSearch=true` : "/discovery");
   }
 
   const badge = {
@@ -82,7 +82,7 @@ export default function Home() {
         {/* Discovery intent hero bar */}
         <div className="max-w-3xl mx-auto mb-8">
           <p className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3 text-center">
-            Tell Gaana what you want to discover
+            Start with a song, artist, mood, or language
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <input
@@ -92,7 +92,7 @@ export default function Home() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSearchSubmit();
               }}
-              placeholder="Punjabi gym songs like Sidhu Moose Wala, but fresher and less viral"
+              placeholder="Arijit Singh for late-night Hindi songs, but fresher"
               className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
             />
             <button
