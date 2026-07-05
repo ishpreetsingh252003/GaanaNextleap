@@ -159,7 +159,7 @@ describe("analysis route reliable review workflow", () => {
       source: "twitter_web",
       attemptedLiveFetch: false,
       fetcherType: "fallback_only",
-      reason: "public_no_auth_source_unavailable",
+      reason: "x_bearer_token_missing_public_no_auth_unavailable",
     });
   });
 

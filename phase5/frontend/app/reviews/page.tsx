@@ -357,7 +357,7 @@ export default function ReviewsPage() {
                         <div className="flex items-center justify-between gap-3 mb-3">
                           <p className="font-semibold text-sm text-white">{diag.label}</p>
                           <span className="text-[11px] rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-white/60">
-                            {diag.fetcherType.replace("_", " ")}
+                            {formatFetcherType(diag.fetcherType)}
                           </span>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs">
@@ -370,7 +370,7 @@ export default function ReviewsPage() {
                           <span>Invalid dates: {diag.invalidDateCount}</span>
                           <span>Duplicates removed: {diag.removedDuplicateCount}</span>
                         </div>
-                        {diag.reason && <p className="mt-2 text-xs text-white/45">Reason: {diag.reason}</p>}
+                        {diag.reason && <p className="mt-2 text-xs text-white/45">{formatDiagnosticReason(diag.reason)}</p>}
                       </div>
                     ))}
                   </div>
@@ -492,6 +492,40 @@ function DiagnosticMetric({ label, value }: { label: string; value: number }) {
       <p className="text-[11px] text-white/45">{label}</p>
     </div>
   );
+}
+
+function formatFetcherType(type: string) {
+  const labels: Record<string, string> = {
+    live: "Live",
+    live_with_credentials: "Live with credentials",
+    placeholder: "Search adapter",
+    fallback_assisted: "Needs API key",
+    fallback_only: "Fallback only",
+  };
+  return labels[type] || type.replace(/_/g, " ");
+}
+
+function formatDiagnosticReason(reason: string) {
+  const labels: Record<string, string> = {
+    live_fetch_succeeded: "Live collection succeeded.",
+    live_fetch_returned_limited: "Live collection returned a small sample, so source-level reliable data was added.",
+    live_fetch_returned_empty: "Live collection returned no usable entries; reliable data was used for this source.",
+    source_timeout: "The source took too long to respond; reliable data was used for this source.",
+    missing_app_store_app_id: "App Store live collection needs APP_STORE_APP_ID.",
+    rss_fetch_succeeded: "App Store RSS collection succeeded.",
+    rss_returned_empty: "App Store RSS returned no matching reviews.",
+    parser_returned_empty: "App Store RSS responded, but no review entries were parsed.",
+    reddit_oauth_succeeded: "Reddit OAuth collection succeeded.",
+    reddit_auth_missing_public_fetch_used: "Reddit credentials are missing; public JSON collection was used.",
+    reddit_auth_missing_or_public_fetch_limited: "Reddit live mode works best with OAuth credentials; reliable data was used.",
+    web_search_succeeded: "Configured web search collection succeeded.",
+    community_search_succeeded: "Configured community search collection succeeded.",
+    missing_web_search_provider: "Live collection needs a configured search provider key.",
+    x_api_succeeded: "X API collection succeeded.",
+    x_bearer_token_missing_public_no_auth_unavailable: "X needs a Bearer Token for live collection. Using fallback corpus for this source.",
+    fallback_used_for_source: "Reliable source-level data was used for this source.",
+  };
+  return labels[reason] || `Reason: ${reason.replace(/_/g, " ")}`;
 }
 
 function LoadingInsights({ loadStep, currentInsight }: { loadStep: number; currentInsight: number }) {

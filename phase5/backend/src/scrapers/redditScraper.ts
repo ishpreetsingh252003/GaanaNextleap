@@ -1,131 +1,157 @@
-/**
- * Reddit scraper
- * Uses Reddit's public JSON API (no auth required for public posts).
- */
-import { fetchWithRetry, sleep } from "../utils/http";
-import { Review, ScrapeResult } from "../types/review";
-import { isWithinRange, toISO, SCRAPE_FROM } from "../utils/dateFilter";
+import axios from "axios";
 import { randomUUID as uuid } from "crypto";
+import { Review, ScrapeResult } from "../types/review";
+import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFilter";
+import { fetchWithRetry } from "../utils/http";
 
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
-const MAX_PAGES = parseInt(process.env.REDDIT_MAX_PAGES_PER_TARGET || "1", 10);
-
-const SEARCH_TARGETS = [
-  { sub: "india", query: "Gaana app music" },
-  { sub: "bollywood", query: "Gaana" },
-  { sub: "IndianMusicStreaming", query: "Gaana" },
-  { sub: "gaana", query: "" },
-  { sub: "androidapps", query: "Gaana app" },
-  { sub: "iosapps", query: "Gaana" },
-  { sub: "musicstreaming", query: "Gaana India" },
+const USER_AGENT = process.env.REDDIT_USER_AGENT || "GaanaNextLeapReviewEngine/1.0";
+const QUERIES = [
+  "Gaana app recommendations",
+  "Gaana same songs",
+  "Gaana music discovery",
+  "Gaana playlist",
+  "Gaana app review",
+  "Gaana recommendations repetitive",
 ];
 
 interface RedditPost {
-  title: string;
-  selftext: string;
-  author: string;
-  created_utc: number;
-  permalink: string;
-  score: number;
+  id?: string;
+  title?: string;
+  selftext?: string;
+  author?: string;
+  created_utc?: number;
+  permalink?: string;
+  score?: number;
+  subreddit?: string;
 }
 
-async function fetchSubredditSearch(
-  subreddit: string,
-  query: string,
-  after: string | null
-): Promise<{ posts: RedditPost[]; after: string | null }> {
-  const base = query
-    ? `https://www.reddit.com/r/${subreddit}/search.json`
-    : `https://www.reddit.com/r/${subreddit}/new.json`;
+export async function getRedditOAuthToken(): Promise<string> {
+  const clientId = process.env.REDDIT_CLIENT_ID;
+  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+  if (!clientId || !clientSecret) throw new Error("reddit_credentials_missing");
 
-  const params = new URLSearchParams({
-    q: query,
-    sort: "new",
-    t: "year",
-    limit: "50",
-    restrict_sr: "1",
-  });
-  if (!query) {
-    params.delete("q");
-    params.delete("restrict_sr");
-  }
-  if (after) params.set("after", after);
-
-  const url = `${base}?${params.toString()}`;
-  const res = await fetchWithRetry(url, {
+  const body = new URLSearchParams({ grant_type: "client_credentials" });
+  const response = await axios.post("https://www.reddit.com/api/v1/access_token", body.toString(), {
+    auth: { username: clientId, password: clientSecret },
     headers: {
-      "User-Agent": process.env.REDDIT_USER_AGENT || "GaanaDiscoveryAI/5.0",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": USER_AGENT,
     },
+    timeout: 8000,
   });
-
-  const children = res.data?.data?.children ?? [];
-  const nextAfter = res.data?.data?.after ?? null;
-  const posts: RedditPost[] = children
-    .filter((c: any) => c.kind === "t3")
-    .map((c: any) => c.data as RedditPost);
-
-  return { posts, after: nextAfter };
+  if (!response.data?.access_token) throw new Error("reddit_oauth_failed");
+  return response.data.access_token;
 }
 
 export async function scrapeReddit(
   fromDate: Date = SCRAPE_FROM,
   toDate: Date = new Date()
 ): Promise<ScrapeResult> {
-  const reviews: Review[] = [];
-  const seenIds = new Set<string>();
-
   try {
-    for (const target of SEARCH_TARGETS) {
-      let afterToken: string | null = null;
-
-      for (let page = 0; page < MAX_PAGES; page++) {
-        await sleep(DELAY_MS);
-
-        const { posts, after } = await fetchSubredditSearch(
-          target.sub,
-          target.query,
-          afterToken
-        );
-
-        if (!posts.length) break;
-
-        for (const post of posts) {
-          const dateStr = toISO(post.created_utc * 1000);
-          if (!isWithinRange(dateStr, fromDate, toDate)) continue;
-
-          const text = [post.title, post.selftext].filter(Boolean).join("\n").trim();
-          if (!text || text.length < 10) continue;
-
-          const uniqueKey = `${target.sub}::${post.permalink}`;
-          if (seenIds.has(uniqueKey)) continue;
-          seenIds.add(uniqueKey);
-
-          reviews.push({
-            id: uuid(),
-            source: "reddit",
-            rating: null,
-            title: post.title,
-            text: post.selftext || post.title,
-            author: post.author || "redditor",
-            date: dateStr,
-            url: `https://reddit.com${post.permalink}`,
-            lang: "en",
-          });
-        }
-
-        afterToken = after;
-        if (!afterToken) break;
-      }
-
-      console.log(
-        `[Reddit] r/${target.sub} "${target.query}": ${reviews.length} total so far`
-      );
+    const token = await getRedditOAuthToken();
+    const reviews = await searchRedditOAuth(token, fromDate, toDate);
+    return {
+      source: "reddit",
+      fetched: reviews.length,
+      reviews,
+      error: reviews.length === 0 ? "reddit_oauth_returned_empty" : undefined,
+    };
+  } catch (oauthErr) {
+    const oauthMessage = oauthErr instanceof Error ? oauthErr.message : String(oauthErr);
+    if (oauthMessage !== "reddit_credentials_missing") {
+      console.warn("[Reddit] OAuth path failed:", oauthMessage);
     }
 
-    return { source: "reddit", fetched: reviews.length, reviews };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[Reddit] Scrape failed:", msg);
-    return { source: "reddit", fetched: 0, reviews: [], error: msg };
+    try {
+      const reviews = await searchRedditPublic(fromDate, toDate);
+      return {
+        source: "reddit",
+        fetched: reviews.length,
+        reviews,
+        error: reviews.length > 0 ? "reddit_auth_missing_public_fetch_used" : "reddit_auth_missing_or_public_fetch_limited",
+      };
+    } catch (publicErr) {
+      const publicMessage = publicErr instanceof Error ? publicErr.message : String(publicErr);
+      console.warn("[Reddit] Public JSON path failed:", publicMessage);
+      return {
+        source: "reddit",
+        fetched: 0,
+        reviews: [],
+        error: "reddit_auth_missing_or_public_fetch_limited",
+      };
+    }
   }
+}
+
+async function searchRedditOAuth(token: string, fromDate: Date, toDate: Date): Promise<Review[]> {
+  const posts: RedditPost[] = [];
+  for (const query of QUERIES) {
+    const params = new URLSearchParams({
+      q: query,
+      sort: "new",
+      t: "year",
+      limit: "25",
+    });
+    const response = await fetchWithRetry(`https://oauth.reddit.com/search?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": USER_AGENT,
+      },
+    }, 1);
+    posts.push(...extractPosts(response.data));
+  }
+  return normalizeRedditPosts(posts, fromDate, toDate);
+}
+
+async function searchRedditPublic(fromDate: Date, toDate: Date): Promise<Review[]> {
+  const posts: RedditPost[] = [];
+  for (const query of QUERIES.slice(0, 3)) {
+    const params = new URLSearchParams({
+      q: query,
+      sort: "new",
+      t: "year",
+      limit: "25",
+    });
+    const response = await fetchWithRetry(`https://www.reddit.com/search.json?${params.toString()}`, {
+      headers: { "User-Agent": USER_AGENT },
+    }, 0);
+    posts.push(...extractPosts(response.data));
+  }
+  return normalizeRedditPosts(posts, fromDate, toDate);
+}
+
+function extractPosts(data: any): RedditPost[] {
+  const children = data?.data?.children ?? [];
+  return children
+    .filter((child: any) => child.kind === "t3")
+    .map((child: any) => child.data as RedditPost);
+}
+
+function normalizeRedditPosts(posts: RedditPost[], fromDate: Date, toDate: Date): Review[] {
+  const seen = new Set<string>();
+  const reviews: Review[] = [];
+
+  for (const post of posts) {
+    const id = post.id || post.permalink || uuid();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const date = normalizeReviewDate((post.created_utc ?? 0) * 1000);
+    if (!date || !isWithinRange(date, fromDate, toDate)) continue;
+    const text = [post.title, post.selftext].filter(Boolean).join("\n").trim();
+    if (!text || text.length < 5) continue;
+
+    reviews.push({
+      id,
+      source: "reddit",
+      rating: null,
+      title: post.title || "",
+      text: post.selftext || post.title || "",
+      author: post.author || "redditor",
+      date,
+      url: post.permalink ? `https://reddit.com${post.permalink}` : "https://reddit.com",
+      lang: "en",
+    });
+  }
+
+  return reviews;
 }

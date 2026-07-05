@@ -38,7 +38,7 @@ export interface SourceDiagnostic {
   source: ReviewSource;
   label: string;
   attemptedLiveFetch: boolean;
-  fetcherType: "live" | "placeholder" | "fallback_only";
+  fetcherType: "live" | "live_with_credentials" | "placeholder" | "fallback_assisted" | "fallback_only";
   liveRawCount: number;
   fallbackRawCount: number;
   combinedRawCount: number;

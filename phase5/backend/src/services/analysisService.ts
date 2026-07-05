@@ -56,7 +56,7 @@ export interface SourceDiagnostic {
   source: ReviewSource;
   label: string;
   attemptedLiveFetch: boolean;
-  fetcherType: "live" | "placeholder" | "fallback_only";
+  fetcherType: "live" | "live_with_credentials" | "placeholder" | "fallback_assisted" | "fallback_only";
   liveRawCount: number;
   fallbackRawCount: number;
   combinedRawCount: number;
@@ -149,9 +149,23 @@ export function sourceLabel(source: ReviewSource): string {
 }
 
 export function getFetcherType(source: ReviewSource): SourceDiagnostic["fetcherType"] {
-  if (source === "twitter_web") return "fallback_only";
-  if (source === "quora" || source === "web_news") return "placeholder";
+  if (source === "twitter_web") return process.env.X_BEARER_TOKEN ? "live_with_credentials" : "fallback_only";
+  if (source === "reddit") {
+    return process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET ? "live_with_credentials" : "live";
+  }
+  if (source === "quora" || source === "web_news") {
+    return hasWebSearchProvider() ? "live_with_credentials" : "fallback_assisted";
+  }
   return "live";
+}
+
+function hasWebSearchProvider(): boolean {
+  return Boolean(
+    (process.env.WEB_SEARCH_PROVIDER && process.env.WEB_SEARCH_API_KEY) ||
+      process.env.BRAVE_SEARCH_API_KEY ||
+      process.env.TAVILY_API_KEY ||
+      process.env.SERPAPI_API_KEY
+  );
 }
 
 export function countInvalidDates(reviews: Review[]): number {

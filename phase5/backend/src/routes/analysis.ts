@@ -230,10 +230,12 @@ async function collectReviewsWithSourceFallback(
   const settled = await Promise.allSettled(
     selectedSources.map(async (source) => {
       if (getFetcherType(source) === "fallback_only") {
-        throw new Error("public_no_auth_source_unavailable");
+        throw new Error(reasonForMissingCredentialSource(source));
       }
       const result = await withTimeout(runScraping([source], fromDate, toDate), SOURCE_FETCH_TIMEOUT_MS);
-      if (result.reviews.length === 0) throw new Error("No public reviews returned for source.");
+      if (result.reviews.length === 0) {
+        throw new Error(result.errors[0]?.message || "live_fetch_returned_empty");
+      }
       return result.reviews;
     })
   );
@@ -261,7 +263,7 @@ async function collectReviewsWithSourceFallback(
       : filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
     const reason =
       result.status === "fulfilled"
-        ? result.value.length >= MIN_LIVE_SOURCE_COUNT ? "live_fetch_succeeded" : "live_fetch_returned_limited"
+        ? result.value.length >= MIN_LIVE_SOURCE_COUNT ? successReasonForSource(source) : "live_fetch_returned_limited"
         : reasonForFetchFailure(source, result.reason);
     diagnostics.push(
       buildDiagnosticForSource(source, liveForSource, fallbackForSource, {
@@ -272,6 +274,19 @@ async function collectReviewsWithSourceFallback(
   }
 
   return { reviews, diagnostics };
+}
+
+function successReasonForSource(source: ScraperKey): string {
+  if (source === "app_store") return "rss_fetch_succeeded";
+  if (source === "reddit") {
+    return process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET
+      ? "reddit_oauth_succeeded"
+      : "reddit_auth_missing_public_fetch_used";
+  }
+  if (source === "web_news") return "web_search_succeeded";
+  if (source === "quora") return "community_search_succeeded";
+  if (source === "twitter_web") return "x_api_succeeded";
+  return "live_fetch_succeeded";
 }
 
 function buildDiagnosticForSource(
@@ -315,11 +330,32 @@ function buildDiagnosticForSource(
 }
 
 function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
-  if (getFetcherType(source) === "fallback_only") return "public_no_auth_source_unavailable";
+  if (getFetcherType(source) === "fallback_only") return reasonForMissingCredentialSource(source);
   const message = reason instanceof Error ? reason.message : String(reason);
+  if ([
+    "missing_app_store_app_id",
+    "rss_fetch_succeeded",
+    "rss_returned_empty",
+    "parser_returned_empty",
+    "rss_fetch_failed",
+    "reddit_oauth_succeeded",
+    "reddit_auth_missing_public_fetch_used",
+    "reddit_auth_missing_or_public_fetch_limited",
+    "missing_web_search_provider",
+    "web_search_succeeded",
+    "community_search_succeeded",
+    "x_api_succeeded",
+    "x_bearer_token_missing_public_no_auth_unavailable",
+  ].includes(message)) return message;
   if (message.includes("timed out")) return "source_timeout";
   if (message.includes("No public reviews")) return "live_fetch_returned_empty";
+  if (getFetcherType(source) === "fallback_assisted") return "missing_web_search_provider";
   return getFetcherType(source) === "placeholder" ? "placeholder_fetcher" : "fallback_used_for_source";
+}
+
+function reasonForMissingCredentialSource(source: ScraperKey): string {
+  if (source === "twitter_web") return "x_bearer_token_missing_public_no_auth_unavailable";
+  return "public_no_auth_source_unavailable";
 }
 
 function toDateOnly(date: Date): string {

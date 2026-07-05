@@ -1,123 +1,75 @@
-/**
- * Twitter / X scraper
- * Uses Nitter mirror instances (no auth required) to scrape public tweets.
- */
-import * as cheerio from "cheerio";
-import { fetchWithRetry, sleep } from "../utils/http";
-import { Review, ScrapeResult } from "../types/review";
-import { isWithinRange, SCRAPE_FROM } from "../utils/dateFilter";
 import { randomUUID as uuid } from "crypto";
-
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
-
-const NITTER_INSTANCES = [
-  "https://nitter.privacydev.net",
-  "https://nitter.poast.org",
-  "https://nitter.1d4.us",
-];
+import { Review, ScrapeResult } from "../types/review";
+import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFilter";
+import { fetchWithRetry } from "../utils/http";
 
 const SEARCH_QUERIES = [
-  "gaana app",
-  "gaana music india",
-  "gaana recommendation",
+  '"Gaana app" recommendations',
+  '"Gaana" "same songs"',
+  '"Gaana" playlist',
+  '"Gaana" "music discovery"',
 ];
-
-interface Tweet {
-  text: string;
-  author: string;
-  date: string;
-  url: string;
-}
-
-async function scrapeTweetsFromNitter(
-  instance: string,
-  query: string
-): Promise<Tweet[]> {
-  const url = `${instance}/search?q=${encodeURIComponent(query)}&f=tweets`;
-  const res = await fetchWithRetry(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; GaanaBot/5.0)" },
-  }, 0);
-
-  const $ = cheerio.load(res.data as string);
-  const tweets: Tweet[] = [];
-
-  $(".timeline-item").each((_, el) => {
-    const text = $(el).find(".tweet-content").text().trim();
-    const author = $(el).find(".fullname").text().trim() || "twitter_user";
-    const dateEl = $(el).find(".tweet-date a");
-    const dateStr = dateEl.attr("title") || dateEl.text().trim();
-    const tweetPath = dateEl.attr("href") || "";
-
-    if (!text || text.length < 10) return;
-
-    let parsedDate: string;
-    try {
-      parsedDate = new Date(dateStr.split("·")[0].trim()).toISOString();
-    } catch {
-      parsedDate = new Date().toISOString();
-    }
-
-    tweets.push({
-      text,
-      author,
-      date: parsedDate,
-      url: tweetPath ? `${instance}${tweetPath}` : instance,
-    });
-  });
-
-  return tweets;
-}
 
 export async function scrapeTwitter(
   fromDate: Date = SCRAPE_FROM,
   toDate: Date = new Date()
 ): Promise<ScrapeResult> {
+  const token = process.env.X_BEARER_TOKEN;
+  if (!token) {
+    return {
+      source: "twitter_web",
+      fetched: 0,
+      reviews: [],
+      error: "x_bearer_token_missing_public_no_auth_unavailable",
+    };
+  }
+
   const reviews: Review[] = [];
-  const seenTexts = new Set<string>();
+  const seen = new Set<string>();
 
-  for (const query of SEARCH_QUERIES) {
-    let succeeded = false;
+  try {
+    for (const query of SEARCH_QUERIES) {
+      const params = new URLSearchParams({
+        query: `${query} lang:en -is:retweet`,
+        max_results: "25",
+        "tweet.fields": "created_at,public_metrics",
+      });
+      const response = await fetchWithRetry(`https://api.twitter.com/2/tweets/search/recent?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }, 1);
 
-    for (const instance of NITTER_INSTANCES) {
-      await sleep(DELAY_MS);
+      for (const tweet of response.data?.data ?? []) {
+        if (seen.has(tweet.id)) continue;
+        seen.add(tweet.id);
+        const date = normalizeReviewDate(tweet.created_at);
+        if (!date || !isWithinRange(date, fromDate, toDate)) continue;
 
-      try {
-        const tweets = await scrapeTweetsFromNitter(instance, query);
-
-        for (const t of tweets) {
-          if (!isWithinRange(t.date, fromDate, toDate)) continue;
-          const key = t.text.slice(0, 60);
-          if (seenTexts.has(key)) continue;
-          seenTexts.add(key);
-
-          reviews.push({
-            id: uuid(),
-            source: "twitter_web",
-            rating: null,
-            title: "",
-            text: t.text,
-            author: t.author,
-            date: t.date,
-            url: t.url,
-            lang: "en",
-          });
-        }
-
-        console.log(
-          `[Twitter] Instance ${instance} query "${query}": ${tweets.length} tweets`
-        );
-        succeeded = true;
-        break;
-      } catch (err) {
-        console.warn(`[Twitter] Instance ${instance} failed:`, err);
-        continue;
+        reviews.push({
+          id: tweet.id || uuid(),
+          source: "twitter_web",
+          rating: null,
+          title: "",
+          text: tweet.text || "",
+          author: "x_public_post",
+          date,
+          url: `https://x.com/i/web/status/${tweet.id}`,
+          lang: "en",
+        });
       }
     }
 
-    if (!succeeded) {
-      console.warn(`[Twitter] All Nitter instances failed for query "${query}"`);
-    }
+    return {
+      source: "twitter_web",
+      fetched: reviews.length,
+      reviews,
+      error: reviews.length === 0 ? "x_api_returned_empty" : undefined,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[X] API fetch failed:", msg);
+    return { source: "twitter_web", fetched: 0, reviews: [], error: "x_api_failed" };
   }
-
-  return { source: "twitter_web", fetched: reviews.length, reviews };
 }
