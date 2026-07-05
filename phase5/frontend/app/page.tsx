@@ -73,14 +73,17 @@ export default function Home() {
           <Link href="/" className="text-white font-semibold border-b-2 border-red-500">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="hover:text-white transition-colors">Discovery Agent</Link>
+          <Link href="/discovery" className="hover:text-white transition-colors">Fresh Finds</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </div>
       </nav>
 
       <main className="container mx-auto px-4 py-8 sm:py-16">
-        {/* Search-style hero bar */}
+        {/* Discovery intent hero bar */}
         <div className="max-w-3xl mx-auto mb-8">
+          <p className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3 text-center">
+            Tell Gaana what you want to discover
+          </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
@@ -89,7 +92,7 @@ export default function Home() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSearchSubmit();
               }}
-              placeholder="Punjabi gym songs like Sidhu Moose Wala..."
+              placeholder="Punjabi gym songs like Sidhu Moose Wala, but fresher and less viral"
               className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
             />
             <button
@@ -97,7 +100,7 @@ export default function Home() {
               onClick={handleSearchSubmit}
               className="w-full sm:w-auto shrink-0 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-4 rounded-full font-bold transition-all shadow-lg hover:shadow-red-500/25"
             >
-              Try Fresh Finds
+              Explore Fresh Finds
             </button>
           </div>
         </div>
@@ -153,12 +156,12 @@ export default function Home() {
         </div>
 
         {/* Product flow cards */}
-        <div className="max-w-4xl mx-auto mb-10">
+        <div className="max-w-6xl mx-auto mb-10">
           <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 text-center">Product Flow</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {[
               { icon: "📡", label: "Review Engine", desc: "Understand why users get stuck in repeat listening loops.", href: "/reviews" },
-              { icon: "🧭", label: "Discovery Signals", desc: "Convert feedback into mood, language, activity, and freshness signals.", href: "/about" },
+              { icon: "🧭", label: "Discovery Signals", desc: "Convert feedback into mood, language, activity, and freshness signals.", href: "/dashboard" },
               { icon: "🎵", label: "Fresh Finds", desc: "Let users control how fresh, familiar, regional, or mainstream their mix should feel.", href: "/discovery" },
               { icon: "📊", label: "Discovery Dashboard", desc: "Track themes, pain points, problem statement, and opportunity areas.", href: "/dashboard" },
             ].map((step, i) => (
@@ -193,7 +196,7 @@ export default function Home() {
         </div>
 
         {/* Problem statement card */}
-        <div className="max-w-3xl mx-auto mb-10">
+        <div className="max-w-6xl mx-auto mb-10">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
             <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Problem Statement</h3>
             <p className="text-sm text-white/80 leading-relaxed">
@@ -255,9 +258,9 @@ function Section({ title, items }: { title: string; items: string[] }) {
         <span className="w-1 h-4 bg-gradient-to-b from-red-500 to-pink-500 rounded-full"></span>
         {title}
       </h3>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex flex-wrap gap-3">
         {items.map((item, i) => (
-          <div key={i} className="flex-shrink-0 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+          <div key={i} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3">
             <p className="text-xs sm:text-sm text-white/80">{item}</p>
           </div>
         ))}

@@ -178,7 +178,7 @@ function DiscoveryContent() {
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
           <Link href="/reviews" className="hover:text-white transition-colors">Review Engine</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Discovery Agent</Link>
+          <Link href="/discovery" className="text-white font-semibold border-b-2 border-red-500">Fresh Finds</Link>
           <Link href="/about" className="hover:text-white transition-colors">About</Link>
         </nav>
       </header>
@@ -187,7 +187,7 @@ function DiscoveryContent() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Fresh Finds by Gaana</h1>
           <p className="text-white/60 text-sm">
-            Discover your next favorite Indian tracks. Select a vibe and get fresh, personalized recommendations.
+            Find songs that feel new, not random.
           </p>
         </div>
 
@@ -198,7 +198,7 @@ function DiscoveryContent() {
               type="text"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="Punjabi gym songs like Sidhu Moose Wala but not the same viral tracks"
+              placeholder="Punjabi gym songs like Sidhu Moose Wala, but fresher and less viral"
               className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50">🔍</span>
@@ -308,7 +308,7 @@ function DiscoveryContent() {
           className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-red-500/25 focus:outline-none focus:ring-2 focus:ring-red-500 mb-3">
           {status === "loading"
             ? <span className="flex items-center justify-center gap-2"><span className="animate-spin">⏳</span>{LOAD_STEPS[loadStep]}</span>
-            : "Find My Vibe"}
+            : "Generate Discovery Mix"}
         </button>
 
         {!isFormReady && (
