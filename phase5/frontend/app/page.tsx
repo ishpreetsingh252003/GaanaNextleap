@@ -1,17 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { checkHealth, BackendError } from "../lib/api";
 
 type Status = "checking" | "ok" | "error";
 
 export default function Home() {
-  const router = useRouter();
   const [status, setStatus] = useState<Status>("checking");
   const [retryCount, setRetryCount] = useState(0);
-  const [query, setQuery] = useState("");
 
   const checkBackend = useCallback(async () => {
     try {
@@ -32,11 +29,6 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [checkBackend, retryCount, status]);
-
-  function handleSearchSubmit() {
-    const trimmed = query.trim();
-    router.push(trimmed ? `/discovery?query=${encodeURIComponent(trimmed)}&autoSearch=true` : "/discovery");
-  }
 
   const badge = {
     checking: (
@@ -79,32 +71,6 @@ export default function Home() {
       </nav>
 
       <main className="container mx-auto px-4 py-8 sm:py-16">
-        {/* Discovery intent hero bar */}
-        <div className="max-w-3xl mx-auto mb-8">
-          <p className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-3 text-center">
-            Start with a song, artist, mood, or language
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearchSubmit();
-              }}
-              placeholder="Arijit Singh for late-night Hindi songs, but fresher"
-              className="w-full bg-white/10 border border-white/20 rounded-full px-6 py-4 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent backdrop-blur-sm"
-            />
-            <button
-              type="button"
-              onClick={handleSearchSubmit}
-              className="w-full sm:w-auto shrink-0 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-4 rounded-full font-bold transition-all shadow-lg hover:shadow-red-500/25"
-            >
-              Explore Fresh Finds
-            </button>
-          </div>
-        </div>
-
         {/* Hero title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-3 tracking-tight">
@@ -120,16 +86,22 @@ export default function Home() {
         {/* CTA buttons */}
         <div className="flex flex-wrap gap-4 justify-center mb-10">
           <Link
-            href="/reviews"
+            href="/discovery"
             className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-8 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-red-500/25 hover:-translate-y-0.5"
           >
-            View Review Insights
+            Try Fresh Finds
           </Link>
           <Link
-            href="/discovery"
+            href="/reviews"
             className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-8 py-3.5 rounded-full font-bold transition-all backdrop-blur-sm hover:-translate-y-0.5"
           >
-            Try Fresh Finds
+            View Review Engine
+          </Link>
+          <Link
+            href="/dashboard"
+            className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-8 py-3.5 rounded-full font-bold transition-all backdrop-blur-sm hover:-translate-y-0.5"
+          >
+            View Discovery Dashboard
           </Link>
         </div>
 

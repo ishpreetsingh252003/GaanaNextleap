@@ -51,6 +51,9 @@ function buildWhyFits(
   if (reference && track.tags.some((t) => t.toLowerCase().includes(reference.toLowerCase().split(" ")[0]))) {
     reasons.push(`similar vibe to ${reference}`);
   }
+  if (reference && reference.trim()) {
+    reasons.push(`uses ${reference} as the reference point`);
+  }
   if (track.popularity_level === "underrated") {
     reasons.push("underrated track worth discovering");
   }
@@ -169,6 +172,7 @@ export function generateFallbackRecommendations(preferences: {
 }
 
 function scoreTrack(track: CatalogTrack, queryText: string): number {
+  const lowerQuery = queryText.toLowerCase();
   const haystack = [
     track.title,
     track.artist,
@@ -179,8 +183,16 @@ function scoreTrack(track: CatalogTrack, queryText: string): number {
     ...track.tags,
   ].join(" ").toLowerCase();
 
-  return queryText
+  let score = queryText
     .split(/\s+/)
     .filter((token) => token.length > 2)
     .reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+
+  if (lowerQuery.includes("sidhu")) {
+    if (track.language === "Punjabi") score += 4;
+    if (track.tags.some((tag) => ["punjabi", "rap", "folk", "urban", "hard-hitting"].includes(tag))) score += 3;
+    if (track.region === "Punjab") score += 2;
+  }
+
+  return score;
 }

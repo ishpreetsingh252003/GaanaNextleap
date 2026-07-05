@@ -33,6 +33,16 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
 
   const inferred = inferDiscoveryIntent(query || reference || "");
   const mergedAvoid = Array.from(new Set([...(inferred.avoid ?? []), ...(avoid ?? [])]));
+  const uiPreferences = {
+    query,
+    mood: mood || inferred.mood || "",
+    language: language || inferred.language || "",
+    activity: activity || inferred.activity || "",
+    freshness: freshness || inferred.freshness || "Balanced",
+    reference: reference || inferred.reference || query,
+    avoid: mergedAvoid,
+    queryType: inferred.queryType,
+  };
   const preferences = {
     query,
     mood: mood || inferred.mood || "Chill",
@@ -97,6 +107,7 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
       is_fallback: false,
       inferred_preferences: inferred,
       resolved_preferences: preferences,
+      ui_preferences: uiPreferences,
       ...result,
     });
   } catch (groqErr) {
@@ -110,6 +121,7 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
         ...fallback,
         inferred_preferences: inferred,
         resolved_preferences: preferences,
+        ui_preferences: uiPreferences,
         is_fallback: true,
         analysisMode: "reliable_demo_analysis",
       });

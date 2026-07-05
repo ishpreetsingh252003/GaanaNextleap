@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   generateRecommendations, DiscoveryPreferences, RecommendationCard, BackendError,
@@ -64,7 +64,6 @@ export default function DiscoveryPage() {
 
 function DiscoveryContent() {
   const searchParams = useSearchParams();
-  const autoSearchKeyRef = useRef("");
   const [mood, setMood]         = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
@@ -77,13 +76,9 @@ function DiscoveryContent() {
   const [recs, setRecs]         = useState<RecommendationCard[]>([]);
   const [explanation, setExplanation] = useState("");
   const [queryUsed, setQueryUsed] = useState("");
+  const [referenceNote, setReferenceNote] = useState("");
   const [isFallback, setIsFallback] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    const urlQuery = searchParams.get("query");
-    if (urlQuery) setReference(urlQuery);
-  }, [searchParams]);
 
   function resetOptionalFilters() {
     setMood("");
@@ -101,6 +96,7 @@ function DiscoveryContent() {
       setRecs([]);
       setExplanation("");
       setQueryUsed("");
+      setReferenceNote("");
       setStatus("idle");
       setErrorMsg("");
     }
@@ -182,14 +178,20 @@ function DiscoveryContent() {
       setExplanation(data.explanation ?? "");
       setQueryUsed(data.query_used ?? "");
       setIsFallback(data.is_fallback ?? false);
-      if (data.resolved_preferences) {
-        if (data.resolved_preferences.mood) setMood(data.resolved_preferences.mood);
-        if (data.resolved_preferences.language) setLanguage(data.resolved_preferences.language);
-        if (data.resolved_preferences.activity) setActivity(data.resolved_preferences.activity);
-        if (data.resolved_preferences.freshness) {
-          setFreshness(data.resolved_preferences.freshness);
-          setFreshnessValue(valueForFreshness(data.resolved_preferences.freshness));
+      const uiPreferences = data.ui_preferences;
+      if (uiPreferences) {
+        setMood(uiPreferences.mood ?? "");
+        setLanguage(uiPreferences.language ?? "");
+        setActivity(uiPreferences.activity ?? "");
+        if (uiPreferences.freshness) {
+          setFreshness(uiPreferences.freshness);
+          setFreshnessValue(valueForFreshness(uiPreferences.freshness));
         }
+        setReferenceNote(
+          uiPreferences.queryType === "reference" && (uiPreferences.reference || prefs.reference)
+            ? `Using "${uiPreferences.reference || prefs.reference}" as a reference point for fresh discovery.`
+            : ""
+        );
       }
       setStatus("success");
     } catch (err) {
@@ -201,15 +203,8 @@ function DiscoveryContent() {
 
   useEffect(() => {
     const urlQuery = searchParams.get("query")?.trim();
-    const autoSearch = searchParams.get("autoSearch") === "true";
-    if (!urlQuery || !autoSearch) return;
-
-    const key = `${urlQuery}:${autoSearch}`;
-    if (autoSearchKeyRef.current === key) return;
-    autoSearchKeyRef.current = key;
-    setReference(urlQuery);
-    runGenerate({ query: urlQuery, reference: urlQuery });
-  }, [runGenerate, searchParams]);
+    if (urlQuery) setReference(urlQuery);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -363,6 +358,12 @@ function DiscoveryContent() {
             : "Generate Discovery Mix"}
         </button>
 
+        {referenceNote && (
+          <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white/70 mb-4">
+            {referenceNote}
+          </div>
+        )}
+
         <p className="text-xs text-white/40 text-center mb-6">
           This MVP uses publicly available music metadata and AI inference for demonstration.
           It does not represent Gaana&apos;s full internal catalog.
@@ -393,7 +394,7 @@ function DiscoveryContent() {
                 🎧
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white">Now discovering: Fresh {language} {mood} Mix</p>
+                <p className="text-sm font-semibold text-white">Now discovering: {reference || language || mood || "Fresh Finds"} Mix</p>
                 <p className="text-xs text-white/60">{recs.length} tracks • {freshness} freshness</p>
               </div>
               <div className="flex gap-2 self-start sm:self-auto">

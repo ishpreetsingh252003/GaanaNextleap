@@ -98,6 +98,7 @@ export interface DiscoveryResponse {
   query_used: string;
   resolved_preferences?: Partial<DiscoveryPreferences>;
   inferred_preferences?: Partial<DiscoveryPreferences>;
+  ui_preferences?: Partial<DiscoveryPreferences> & { queryType?: "reference" | "intent" };
   is_fallback?: boolean;
   _fallback_reason?: string;
 }

@@ -24,5 +24,25 @@ describe("inferDiscoveryIntent", () => {
     const intent = inferDiscoveryIntent("Arijit Singh");
 
     expect(intent.reference).toBe("Arijit Singh");
+    expect(intent.queryType).toBe("reference");
+    expect(intent.mood).toBeUndefined();
+    expect(intent.activity).toBeUndefined();
+  });
+
+  it("treats Sidhu as a Punjabi reference without mood or activity", () => {
+    const intent = inferDiscoveryIntent("Sidhu");
+
+    expect(intent.reference).toBe("Sidhu");
+    expect(intent.queryType).toBe("reference");
+    expect(intent.language).toBe("Punjabi");
+    expect(intent.mood).toBeUndefined();
+    expect(intent.activity).toBeUndefined();
+  });
+
+  it("only infers activity for Sidhu when explicit activity keywords exist", () => {
+    const intent = inferDiscoveryIntent("Sidhu gym songs");
+
+    expect(intent.reference).toBe("Sidhu gym songs");
+    expect(intent.activity).toBe("Gym");
   });
 });

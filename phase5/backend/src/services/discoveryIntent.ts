@@ -1,4 +1,5 @@
 export interface DiscoveryIntent {
+  queryType?: "reference" | "intent";
   mood?: string;
   language?: string;
   activity?: string;
@@ -70,10 +71,13 @@ export function inferDiscoveryIntent(query = ""): DiscoveryIntent {
   const likeMatch = text.match(/\blike\s+([^,]+?)(?:\s+but|\s+and|$)/i);
   if (likeMatch?.[1]) {
     intent.reference = likeMatch[1].trim();
+    intent.queryType = "intent";
   } else if (text && text.split(/\s+/).length <= 4) {
     intent.reference = text;
+    intent.queryType = intent.mood || intent.activity || intent.freshness || intent.avoid.length > 0 ? "intent" : "reference";
   } else if (text) {
-    intent.reference = text;
+    intent.reference = intent.mood || intent.activity || intent.freshness || intent.avoid.length > 0 ? undefined : text;
+    intent.queryType = "intent";
   }
 
   return {
