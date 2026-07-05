@@ -33,6 +33,13 @@ function sourceLabel(s: ReviewSource): string {
     quora:"Quora",web_news:"Web/News",twitter_web:"Twitter" }[s];
 }
 
+function buildSourceSummary(reviews: Review[]): Partial<Record<ReviewSource, number>> {
+  return reviews.reduce<Partial<Record<ReviewSource, number>>>((summary, review) => {
+    summary[review.source] = (summary[review.source] ?? 0) + 1;
+    return summary;
+  }, {});
+}
+
 const INSIGHT_CARDS = [
   "Discovery works best when music feels fresh but still familiar.",
   "If recommendations feel random, users often return to old playlists.",
@@ -131,24 +138,17 @@ export default function ReviewsPage() {
     try {
       // Simulate a short delay for the loading screen to be appreciated
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const resp = await loadFallbackAnalysis();
+      const resp = await loadFallbackAnalysis(selectedSources as ReviewSource[], startDate, endDate);
       clearTicker();
       const fallbackAnalysis = resp.analysis;
-      const mockReviews: Review[] = [
-        { id:"fb-1",source:"google_play",rating:2,title:"Repeats same songs",text:"I am tired of listening to the same old songs. The app keeps recommending the same 10 hits over and over.",author:"Rahul S.",date:"2026-03-01T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-2",source:"app_store",rating:1,title:"Recommendations feel stale",text:"It does not matter if I choose chill or dance mood, it just plays the same viral Punjabi songs. Terrible discovery experience.",author:"Preeti K.",date:"2026-03-10T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-3",source:"reddit",rating:null,title:"Gaana playlist fatigue is real",text:"Does anyone else feel like Gaana keeps playing the exact same tracklist? I try to find underrated indie or regional music but it constantly pushes mainstream Bollywood.",author:"music_lover_99",date:"2026-04-12T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-4",source:"google_play",rating:3,title:"Needs activity-based music",text:"I want Gym music that actually matches my pace. Traditional recommendation is very poor at capturing my current context.",author:"Amit Verma",date:"2026-04-18T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-5",source:"quora",rating:null,title:"Why does Gaana recommend the same tracks?",text:"Recommender systems rely on popularity bias. If a Bollywood track is trending it spams everyone's discovery list. This is why you get stuck in listening loops.",author:"Aditya Roy",date:"2026-05-01T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-6",source:"web_news",rating:null,title:"The problem with streaming catalogs",text:"Users complain about repetitive loops on Gaana. Recommender systems struggle with the cold-start problem for emerging artists.",author:"Tech India Blog",date:"2026-05-20T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-7",source:"google_play",rating:2,title:"Fails to match mood",text:"I select Chill Hindi but it starts playing upbeat bhangra. Recommendation engine doesn't understand context or nuance.",author:"Sneha G.",date:"2026-06-05T00:00:00Z",url:null,lang:"en" },
-        { id:"fb-8",source:"app_store",rating:2,title:"Bias towards mainstream",text:"Everything recommended is mainstream and viral. What if I want regional music that is niche? The algorithm forces hits upon us.",author:"Karthik R.",date:"2026-06-12T00:00:00Z",url:null,lang:"en" },
-      ];
+      const representativeReviews = resp.representativeReviews ?? fallbackAnalysis.representativeReviews ?? [];
       const mockResponse: ScrapeResponse = {
-        success: true, total_reviews: 120, // Updated count
-        date_range: { from: "2026-01-01", to: "2026-07-03" },
-        sources_summary: { google_play:3, app_store:2, reddit:1, quora:1, web_news:1, twitter_web: 0 } as any,
-        reviews: mockReviews, // We only show a few representative ones
+        success: true,
+        total_reviews: resp.totalReviews ?? fallbackAnalysis.total_reviews_analyzed,
+        date_range: { from: startDate, to: endDate },
+        sources_summary: buildSourceSummary(representativeReviews),
+        reviews: representativeReviews,
+        message: resp.message ?? fallbackAnalysis.message,
       };
       setResult(mockResponse);
       setAnalysis(fallbackAnalysis);
@@ -168,10 +168,15 @@ export default function ReviewsPage() {
     try {
       const data = await scrapeReviews(selectedSources as ReviewSource[], startDate, endDate);
       setLoadStep(3);
-      const resp = await analyzeReviews(data.reviews);
+      const resp = await analyzeReviews(data.reviews, selectedSources as ReviewSource[], startDate, endDate);
       clearTicker(); 
       setLoadStep(5);
-      setResult(data); 
+      setResult({
+        ...data,
+        total_reviews: resp.totalReviews ?? resp.analysis.total_reviews_analyzed ?? data.total_reviews,
+        reviews: resp.representativeReviews ?? resp.analysis.representativeReviews ?? data.reviews.slice(0, 8),
+        message: resp.message ?? resp.analysis.message,
+      }); 
       setAnalysis(resp.analysis);
       sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(resp.analysis));
       setStatus("success");
@@ -365,6 +370,11 @@ export default function ReviewsPage() {
               <p className="text-sm text-white/60 mb-4">
                 Showing representative reviews from {result.total_reviews} analyzed entries.
               </p>
+              {result.message && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-amber-300 backdrop-blur-sm">
+                  {result.message}
+                </div>
+              )}
               {paged.length === 0
                 ? <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center text-white/40 backdrop-blur-sm">No reviews match your filter.</div>
                 : paged.map((r) => <ReviewCard key={r.id} review={r} />)}

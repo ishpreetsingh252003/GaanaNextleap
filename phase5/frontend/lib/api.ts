@@ -30,6 +30,7 @@ export interface ScrapeResponse {
   sources_summary: Partial<Record<ReviewSource, number>>;
   errors?: { source: ReviewSource; message: string }[];
   reviews: Review[];
+  message?: string;
 }
 
 export interface SourceInfo {
@@ -63,6 +64,8 @@ export interface AnalysisResult {
   target_user_segment: string;
   problem_statement: string;
   business_opportunity: string;
+  representativeReviews?: Review[];
+  message?: string;
   is_fallback?: boolean;
   _fallback_reason?: string;
 }
@@ -159,17 +162,22 @@ export const scrapeReviews = (sources?: ReviewSource[], startDate?: string, endD
     }),
   });
 
-export const analyzeReviews = (reviews: Review[]) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; analysis: AnalysisResult }>(
+export const analyzeReviews = (
+  reviews: Review[],
+  sources?: ReviewSource[],
+  startDate?: string,
+  endDate?: string
+) =>
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
-    { method: "POST", body: JSON.stringify({ reviews }) }
+    { method: "POST", body: JSON.stringify({ reviews, sources, startDate, endDate }) }
   );
 
 /** Request the pre-generated fallback analysis (no Groq call) */
-export const loadFallbackAnalysis = () =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; analysis: AnalysisResult }>(
+export const loadFallbackAnalysis = (sources?: ReviewSource[], startDate?: string, endDate?: string) =>
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
-    { method: "POST", body: JSON.stringify({ useFallback: true, reviews: [] }) }
+    { method: "POST", body: JSON.stringify({ useFallback: true, reviews: [], sources, startDate, endDate }) }
   );
 
 export const generateRecommendations = (preferences: DiscoveryPreferences) =>

@@ -74,13 +74,13 @@ describe("GroqService", () => {
       await expect(service.analyzeReviews([])).rejects.toThrow("No reviews provided");
     });
 
-    it("limits analysis to first 100 reviews", async () => {
+    it("limits analysis prompt to first 30 reviews", async () => {
       mockCreate.mockResolvedValue({
         choices: [{
           message: {
             content: JSON.stringify({
               summary: "ok",
-              total_reviews_analyzed: 100,
+              total_reviews_analyzed: 30,
               themes: [],
               sentiment_summary: { positive: 0, neutral: 100, negative: 0 },
               target_user_segment: "",
@@ -100,7 +100,10 @@ describe("GroqService", () => {
       }));
 
       const result = await service.analyzeReviews(reviews);
-      expect(result.total_reviews_analyzed).toBe(100);
+      const prompt = mockCreate.mock.calls[0][0].messages[0].content;
+      expect(result.total_reviews_analyzed).toBe(30);
+      expect(prompt).toContain("[Review 30]");
+      expect(prompt).not.toContain("[Review 31]");
     });
 
     it("throws when Groq returns empty content", async () => {

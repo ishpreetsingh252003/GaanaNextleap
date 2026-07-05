@@ -90,7 +90,7 @@ class GroqService {
       throw new Error("No reviews provided for analysis.");
     }
 
-    const MAX = 100;
+    const MAX = 30;
     const subset = reviews.slice(0, MAX);
 
     const reviewText = subset
@@ -162,12 +162,8 @@ Rules:
       try {
         return JSON.parse(content);
       } catch {
-        console.error("[GroqService] JSON parse failed, returning raw content");
-        return {
-          summary: "Analysis completed but response format was unexpected.",
-          raw_response: content,
-          _parse_error: true,
-        };
+        console.error("[GroqService] JSON parse failed in analyzeReviews");
+        throw new Error("Groq returned malformed JSON — fallback will be used.");
       }
     }, 3, "analyzeReviews");
   }

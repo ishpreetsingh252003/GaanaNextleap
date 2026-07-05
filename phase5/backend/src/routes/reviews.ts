@@ -24,11 +24,15 @@ router.get("/sources", (_req: Request, res: Response) => {
 });
 
 router.post("/scrape", async (req: Request, res: Response) => {
-  const { sources, fromDate, toDate } = req.body as {
+  const { sources, fromDate, toDate, startDate, endDate } = req.body as {
     sources?: string[];
     fromDate?: string;
     toDate?: string;
+    startDate?: string;
+    endDate?: string;
   };
+  const requestedFromDate = fromDate ?? startDate;
+  const requestedToDate = toDate ?? endDate;
 
   let selectedSources: ScraperKey[];
   if (sources && Array.isArray(sources) && sources.length > 0) {
@@ -46,21 +50,21 @@ router.post("/scrape", async (req: Request, res: Response) => {
 
   let fromDateObj: Date | undefined;
   let toDateObj: Date | undefined;
-  if (fromDate) {
-    fromDateObj = new Date(fromDate);
+  if (requestedFromDate) {
+    fromDateObj = new Date(requestedFromDate);
     if (isNaN(fromDateObj.getTime())) {
       return res.status(400).json({
         error_code: "INVALID_FROM_DATE",
-        error_message: `Invalid fromDate format: ${fromDate}. Use YYYY-MM-DD or ISO 8601 string.`,
+        error_message: `Invalid start date format. Use YYYY-MM-DD or ISO 8601 string.`,
       });
     }
   }
-  if (toDate) {
-    toDateObj = new Date(toDate);
+  if (requestedToDate) {
+    toDateObj = new Date(requestedToDate);
     if (isNaN(toDateObj.getTime())) {
       return res.status(400).json({
         error_code: "INVALID_TO_DATE",
-        error_message: `Invalid toDate format: ${toDate}. Use YYYY-MM-DD or ISO 8601 string.`,
+        error_message: `Invalid end date format. Use YYYY-MM-DD or ISO 8601 string.`,
       });
     }
   }

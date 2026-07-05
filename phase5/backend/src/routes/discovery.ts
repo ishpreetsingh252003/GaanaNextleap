@@ -16,6 +16,7 @@ const VALID_AVOID_OPTIONS = [
   "avoid_sad",
   "avoid_slow",
 ];
+const GROQ_DISCOVERY_TIMEOUT_MS = 12_000;
 
 router.post("/discovery-agent", async (req: Request, res: Response) => {
   const { mood, language, activity, freshness, reference, avoid, refineAction } = req.body;
@@ -83,7 +84,10 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
       `[DiscoveryRoute] Generating recommendations — mood=${mood}, language=${language}, activity=${activity}, freshness=${freshness}`
     );
 
-    const result = await groqService.generateRecommendations(preferences);
+    const result = await withTimeout(
+      groqService.generateRecommendations(preferences),
+      GROQ_DISCOVERY_TIMEOUT_MS
+    );
 
     console.log("[DiscoveryRoute] Groq recommendations generated successfully");
     return res.json({
@@ -103,22 +107,34 @@ router.post("/discovery-agent", async (req: Request, res: Response) => {
       return res.json({
         success: true,
         ...fallback,
-        _fallback_reason: "AI generation temporarily unavailable — showing sample catalog recommendations.",
+        is_fallback: true,
+        analysisMode: "reliable_demo_analysis",
       });
     } catch (fallbackErr) {
       const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
       console.error("[DiscoveryRoute] Both Groq and fallback failed:", fallbackMsg);
 
-      const isKeyMissing = groqMsg.includes("GROQ_API_KEY");
-      return res.status(isKeyMissing ? 503 : 500).json({
-        error_code: isKeyMissing ? "GROQ_NOT_CONFIGURED" : "DISCOVERY_ERROR",
-        error_message: isKeyMissing
-          ? "AI service is not configured. Add GROQ_API_KEY to backend .env file."
-          : "Failed to generate recommendations. Please try again.",
-        error_details: process.env.NODE_ENV === "development" ? groqMsg : null,
+      return res.status(500).json({
+        error_code: "DISCOVERY_TEMPORARILY_UNAVAILABLE",
+        error_message: "Recommendations are temporarily unavailable. Please try again in a moment.",
       });
     }
   }
 });
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("AI generation timed out.")), timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+  });
+}
 
 export default router;
