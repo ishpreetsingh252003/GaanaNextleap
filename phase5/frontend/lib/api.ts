@@ -31,6 +31,30 @@ export interface ScrapeResponse {
   errors?: { source: ReviewSource; message: string }[];
   reviews: Review[];
   message?: string;
+  sourceDiagnostics?: SourceDiagnostic[];
+}
+
+export interface SourceDiagnostic {
+  source: ReviewSource;
+  label: string;
+  attemptedLiveFetch: boolean;
+  fetcherType: "live" | "placeholder" | "fallback_only";
+  liveRawCount: number;
+  fallbackRawCount: number;
+  combinedRawCount: number;
+  beforeDateFilterCount: number;
+  afterDateFilterCount: number;
+  afterCleaningCount: number;
+  afterDedupeCount: number;
+  finalCountUsed: number;
+  invalidDateCount: number;
+  removedEmptyCount: number;
+  removedTooShortCount: number;
+  removedLanguageCount: number;
+  removedDuplicateCount: number;
+  removedInvalidDateCount: number;
+  fallbackUsed: boolean;
+  reason?: string;
 }
 
 export interface SourceInfo {
@@ -187,14 +211,14 @@ export const analyzeReviews = (
   endDate?: string,
   collectSources?: boolean
 ) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
     { method: "POST", body: JSON.stringify({ reviews, sources, startDate, endDate, collectSources }) }
   );
 
 /** Request the pre-generated fallback analysis (no Groq call) */
 export const loadFallbackAnalysis = (sources?: ReviewSource[], startDate?: string, endDate?: string) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
     { method: "POST", body: JSON.stringify({ useFallback: true, reviews: [], sources, startDate, endDate }) }
   );

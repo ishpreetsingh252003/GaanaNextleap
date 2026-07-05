@@ -7,8 +7,8 @@ import { Review, ScrapeResult } from "../types/review";
 import { isWithinRange, toISO, SCRAPE_FROM } from "../utils/dateFilter";
 import { randomUUID as uuid } from "crypto";
 
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "1500", 10);
-const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_SOURCE || "5", 10);
+const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
+const MAX_PAGES = parseInt(process.env.REDDIT_MAX_PAGES_PER_TARGET || "1", 10);
 
 const SEARCH_TARGETS = [
   { sub: "india", query: "Gaana app music" },
@@ -42,7 +42,7 @@ async function fetchSubredditSearch(
     q: query,
     sort: "new",
     t: "year",
-    limit: "25",
+    limit: "50",
     restrict_sr: "1",
   });
   if (!query) {

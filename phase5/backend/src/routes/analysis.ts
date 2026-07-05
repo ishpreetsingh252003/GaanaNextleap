@@ -8,10 +8,14 @@ import {
   buildStratifiedReviewSample,
   buildReliableFallbackAnalysis,
   buildZeroMatchPayload,
+  countInvalidDates,
   filterReviews,
+  getFetcherType,
   getFallbackReviewDataset,
   normalizeSource,
   shapeAnalysisResponse,
+  sourceLabel,
+  SourceDiagnostic,
   validateAnalysisResult,
   VALID_REVIEW_SOURCES,
 } from "../services/analysisService";
@@ -20,6 +24,7 @@ const router = Router();
 const groqService = getGroqService() as unknown as GroqService;
 const SOURCE_FETCH_TIMEOUT_MS = 6_000;
 const GROQ_STAGE_TIMEOUT_MS = 12_000;
+const MIN_LIVE_SOURCE_COUNT = 10;
 
 // POST /api/analysis/review-analysis
 router.post("/review-analysis", async (req: Request, res: Response) => {
@@ -38,7 +43,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     startDate: useFallback ? "2026-01-01" : startDate,
     endDate: useFallback ? toDateOnly(new Date()) : endDate,
   };
-  const sourceDataset = await resolveReviewDataset({
+  const { reviews: sourceDataset, diagnostics: sourceDiagnostics } = await resolveReviewDataset({
     reviews,
     useFallback,
     collectSources,
@@ -50,13 +55,17 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
   const totalReviews = filteredReviews.length;
 
   if (totalReviews === 0) {
-    return res.json(buildZeroMatchPayload(filters));
+    return res.json({
+      ...buildZeroMatchPayload(filters),
+      sourceDiagnostics,
+    });
   }
 
   if (useFallback === true) {
     const fallbackAnalysis = buildReliableFallbackAnalysis(filteredReviews, filters);
     const response = shapeAnalysisResponse(fallbackAnalysis, filteredReviews, filters, true);
     response.message = `Showing representative reviews from ${totalReviews} demo feedback entries across all sources.`;
+    (response as any).sourceDiagnostics = sourceDiagnostics;
     response.analysis.message = response.message;
     response.analysis.analysisMode = "demo";
     response.analysis.analysis_mode = "demo";
@@ -103,6 +112,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     }
 
     const response = shapeAnalysisResponse(analysis, filteredReviews, filters, false);
+    (response as any).sourceDiagnostics = sourceDiagnostics;
     if (sourceDataset.some((review) => review.id.startsWith("fallback-") || review.author === "Public feedback")) {
       response.message = "Some public sources were limited, so reliable review data was used for those sources.";
       response.analysis.message = response.message;
@@ -117,6 +127,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     const fallbackAnalysis = buildReliableFallbackAnalysis(filteredReviews, filters);
     const response = shapeAnalysisResponse(fallbackAnalysis, filteredReviews, filters, true);
     response.message = "Some sources or AI calls were limited, so this run used reliable analysis from available feedback data.";
+    (response as any).sourceDiagnostics = sourceDiagnostics;
     response.analysis.message = response.message;
     response.analysis.analysisMode = "reliable_analysis";
     response.analysis.analysis_mode = "reliable_analysis";
@@ -170,45 +181,145 @@ async function resolveReviewDataset({
   selectedSources: string[];
   startDate?: string;
   endDate?: string;
-}) {
-  if (useFallback) return getFallbackReviewDataset();
+}): Promise<{ reviews: Review[]; diagnostics: SourceDiagnostic[] }> {
+  if (useFallback) {
+    const fallback = getFallbackReviewDataset();
+    return {
+      reviews: fallback,
+      diagnostics: selectedSources.map((source) =>
+        buildDiagnosticForSource(source as ScraperKey, [], fallback, {
+          attemptedLiveFetch: false,
+          reason: getFetcherType(source as ScraperKey) === "fallback_only" ? "public_no_auth_source_unavailable" : "full_demo_dataset",
+        }, startDate, endDate)
+      ),
+    };
+  }
   if (collectSources || !reviews || reviews.length === 0) {
     return collectReviewsWithSourceFallback(selectedSources as ScraperKey[], startDate, endDate);
   }
 
   const selected = selectedSources.map(normalizeSource);
   const liveSourceSet = new Set(reviews.map((review) => normalizeSource(review.source)));
-  const fallbackForMissingSources = getFallbackReviewDataset().filter((review) => {
+  const fallbackDataset = getFallbackReviewDataset();
+  const fallbackForMissingSources = fallbackDataset.filter((review) => {
     const source = normalizeSource(review.source);
     return selected.includes(source) && !liveSourceSet.has(source);
   });
 
-  return [...reviews, ...fallbackForMissingSources];
+  const combined = [...reviews, ...fallbackForMissingSources];
+  return {
+    reviews: combined,
+    diagnostics: selected.map((source) =>
+      buildDiagnosticForSource(source as ScraperKey, reviews, fallbackForMissingSources, {
+        attemptedLiveFetch: reviews.some((review) => normalizeSource(review.source) === source),
+        reason: liveSourceSet.has(source) ? "live_fetch_succeeded" : "fallback_used_for_source",
+      }, startDate, endDate)
+    ),
+  };
 }
 
 async function collectReviewsWithSourceFallback(
   selectedSources: ScraperKey[],
   startDate?: string,
   endDate?: string
-) {
+) : Promise<{ reviews: Review[]; diagnostics: SourceDiagnostic[] }> {
   const fromDate = startDate ? new Date(startDate) : undefined;
   const toDate = endDate ? new Date(endDate) : undefined;
   const fallbackDataset = getFallbackReviewDataset();
 
   const settled = await Promise.allSettled(
     selectedSources.map(async (source) => {
+      if (getFetcherType(source) === "fallback_only") {
+        throw new Error("public_no_auth_source_unavailable");
+      }
       const result = await withTimeout(runScraping([source], fromDate, toDate), SOURCE_FETCH_TIMEOUT_MS);
       if (result.reviews.length === 0) throw new Error("No public reviews returned for source.");
       return result.reviews;
     })
   );
 
-  return settled.flatMap((result, index) => {
+  const diagnostics: SourceDiagnostic[] = [];
+  const reviews = settled.flatMap((result, index) => {
     const source = selectedSources[index];
-    if (result.status === "fulfilled") return result.value;
+    const fallbackForSource = filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
+    if (result.status === "fulfilled") {
+      return result.value.length >= MIN_LIVE_SOURCE_COUNT
+        ? result.value
+        : [...result.value, ...fallbackForSource];
+    }
+    const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
     console.warn(`[AnalysisRoute] Source ${source} limited; using reliable review data.`);
-    return filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
+    return fallbackForSource;
   });
+
+  for (let index = 0; index < selectedSources.length; index++) {
+    const source = selectedSources[index];
+    const result = settled[index];
+    const liveForSource = result.status === "fulfilled" ? result.value : [];
+    const fallbackForSource = result.status === "fulfilled" && result.value.length >= MIN_LIVE_SOURCE_COUNT
+      ? []
+      : filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
+    const reason =
+      result.status === "fulfilled"
+        ? result.value.length >= MIN_LIVE_SOURCE_COUNT ? "live_fetch_succeeded" : "live_fetch_returned_limited"
+        : reasonForFetchFailure(source, result.reason);
+    diagnostics.push(
+      buildDiagnosticForSource(source, liveForSource, fallbackForSource, {
+        attemptedLiveFetch: getFetcherType(source) !== "fallback_only",
+        reason,
+      }, startDate, endDate)
+    );
+  }
+
+  return { reviews, diagnostics };
+}
+
+function buildDiagnosticForSource(
+  source: ScraperKey,
+  liveReviews: Review[],
+  fallbackReviews: Review[],
+  options: { attemptedLiveFetch: boolean; reason: string },
+  startDate?: string,
+  endDate?: string
+): SourceDiagnostic {
+  const liveForSource = liveReviews.filter((review) => normalizeSource(review.source) === source);
+  const fallbackForSource = fallbackReviews.filter((review) => normalizeSource(review.source) === source);
+  const combined = [...liveForSource, ...fallbackForSource];
+  const filtered = filterReviews(combined, { sources: [source], startDate, endDate });
+  const invalidDateCount = countInvalidDates(combined);
+  const fallbackUsed = fallbackForSource.length > 0;
+  const fetcherType = getFetcherType(source);
+
+  return {
+    source,
+    label: sourceLabel(source),
+    attemptedLiveFetch: options.attemptedLiveFetch,
+    fetcherType,
+    liveRawCount: liveForSource.length,
+    fallbackRawCount: fallbackForSource.length,
+    combinedRawCount: combined.length,
+    beforeDateFilterCount: combined.length,
+    afterDateFilterCount: filtered.length,
+    afterCleaningCount: filtered.length,
+    afterDedupeCount: filtered.length,
+    finalCountUsed: filtered.length,
+    invalidDateCount,
+    removedEmptyCount: 0,
+    removedTooShortCount: 0,
+    removedLanguageCount: 0,
+    removedDuplicateCount: 0,
+    removedInvalidDateCount: invalidDateCount,
+    fallbackUsed,
+    reason: fallbackUsed && options.reason === "live_fetch_succeeded" ? "fallback_used_for_source" : options.reason,
+  };
+}
+
+function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
+  if (getFetcherType(source) === "fallback_only") return "public_no_auth_source_unavailable";
+  const message = reason instanceof Error ? reason.message : String(reason);
+  if (message.includes("timed out")) return "source_timeout";
+  if (message.includes("No public reviews")) return "live_fetch_returned_empty";
+  return getFetcherType(source) === "placeholder" ? "placeholder_fetcher" : "fallback_used_for_source";
 }
 
 function toDateOnly(date: Date): string {

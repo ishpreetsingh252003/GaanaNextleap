@@ -1,6 +1,7 @@
 import { FALLBACK_ANALYSIS } from "../data/fallbackAnalysis";
 import { fallbackReviews, FallbackReview } from "../data/fallbackData";
 import { Review, ReviewSource } from "../types/review";
+import { normalizeReviewDate } from "../utils/dateFilter";
 
 export const VALID_REVIEW_SOURCES: ReviewSource[] = [
   "google_play",
@@ -49,6 +50,29 @@ export interface AnalysisMetadata {
   sourcesUsed: ReviewSource[];
   requestedDateRange: { startDate: string | null; endDate: string | null };
   actualDateRange: { startDate: string | null; endDate: string | null };
+}
+
+export interface SourceDiagnostic {
+  source: ReviewSource;
+  label: string;
+  attemptedLiveFetch: boolean;
+  fetcherType: "live" | "placeholder" | "fallback_only";
+  liveRawCount: number;
+  fallbackRawCount: number;
+  combinedRawCount: number;
+  beforeDateFilterCount: number;
+  afterDateFilterCount: number;
+  afterCleaningCount: number;
+  afterDedupeCount: number;
+  finalCountUsed: number;
+  invalidDateCount: number;
+  removedEmptyCount: number;
+  removedTooShortCount: number;
+  removedLanguageCount: number;
+  removedDuplicateCount: number;
+  removedInvalidDateCount: number;
+  fallbackUsed: boolean;
+  reason?: string;
 }
 
 export function fallbackToReview(review: FallbackReview): Review {
@@ -102,13 +126,36 @@ export function filterReviews(reviews: Review[], filters: ReviewFilters): Review
     const source = normalizeSource(review.source);
     if (selectedSources?.length && !selectedSources.includes(source)) return false;
 
-    const reviewDate = new Date(review.date);
-    if (Number.isNaN(reviewDate.getTime())) return false;
+    const normalizedDate = normalizeReviewDate(review.date);
+    if (!normalizedDate) return false;
+    const reviewDate = new Date(`${normalizedDate}T12:00:00.000Z`);
     if (start && reviewDate < start) return false;
     if (end && reviewDate > end) return false;
 
     return true;
   });
+}
+
+export function sourceLabel(source: ReviewSource): string {
+  const labels: Record<ReviewSource, string> = {
+    google_play: "Google Play",
+    app_store: "App Store",
+    reddit: "Reddit",
+    quora: "Quora",
+    web_news: "Web / News",
+    twitter_web: "Twitter / X",
+  };
+  return labels[source];
+}
+
+export function getFetcherType(source: ReviewSource): SourceDiagnostic["fetcherType"] {
+  if (source === "twitter_web") return "fallback_only";
+  if (source === "quora" || source === "web_news") return "placeholder";
+  return "live";
+}
+
+export function countInvalidDates(reviews: Review[]): number {
+  return reviews.filter((review) => !normalizeReviewDate(review.date)).length;
 }
 
 export function buildAnalysisMetadata(reviews: Review[], filters: ReviewFilters): AnalysisMetadata {
@@ -402,15 +449,11 @@ function reviewContains(review: Review, keyword: string): boolean {
 }
 
 function startOfDay(date: string): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return new Date(`${normalizeReviewDate(date) ?? date}T00:00:00.000Z`);
 }
 
 function endOfDay(date: string): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
+  return new Date(`${normalizeReviewDate(date) ?? date}T23:59:59.999Z`);
 }
 
 function toDateOnly(date: Date): string {

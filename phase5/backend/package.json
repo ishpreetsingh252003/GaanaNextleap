@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "debug:reviews": "ts-node src/scripts/debugReviews.ts",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {

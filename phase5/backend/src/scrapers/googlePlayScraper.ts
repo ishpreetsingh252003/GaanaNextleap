@@ -9,9 +9,9 @@ import { sleep } from "../utils/http";
 import { randomUUID as uuid } from "crypto";
 
 const APP_ID = process.env.GOOGLE_PLAY_APP_ID || "com.gaana";
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "1500", 10);
-const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_SOURCE || "5", 10);
-const PAGE_SIZE = 100;
+const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
+const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_SOURCE || "3", 10);
+const PAGE_SIZE = parseInt(process.env.GOOGLE_PLAY_PAGE_SIZE || "200", 10);
 
 export async function scrapeGooglePlay(
   fromDate: Date = SCRAPE_FROM,

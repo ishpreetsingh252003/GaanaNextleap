@@ -6,11 +6,14 @@ import {
   buildReliableFallbackAnalysis,
   buildZeroMatchPayload,
   containsPII,
+  countInvalidDates,
   filterReviews,
   getFallbackReviewDataset,
+  normalizeSource,
   selectRepresentativeReviews,
   validateAnalysisResult,
 } from "../src/services/analysisService";
+import { normalizeReviewDate } from "../src/utils/dateFilter";
 
 describe("analysisService", () => {
   const dataset = getFallbackReviewDataset();
@@ -45,6 +48,33 @@ describe("analysisService", () => {
 
     expect(fullRange.length).toBeGreaterThan(narrowRange.length);
     expect(narrowRange.every((review) => review.date >= "2026-01-01" && review.date <= "2026-01-31")).toBe(true);
+  });
+
+  it("source IDs normalize to canonical values without dropping valid sources", () => {
+    expect(normalizeSource("Google Play")).toBe("google_play");
+    expect(normalizeSource("twitter_x")).toBe("twitter_web");
+    expect(normalizeSource("web")).toBe("web_news");
+  });
+
+  it("date filtering includes boundary dates and avoids timezone day shifts", () => {
+    const boundaryReviews = [
+      { ...dataset[0], id: "boundary-start", date: "2026-01-01" },
+      { ...dataset[1], id: "boundary-end", date: "2026-07-06T23:30:00+05:30" },
+    ];
+
+    const filtered = filterReviews(boundaryReviews, {
+      sources: ["google_play"],
+      startDate: "2026-01-01",
+      endDate: "2026-07-06",
+    });
+
+    expect(filtered.map((review) => review.id)).toContain("boundary-start");
+    expect(filtered.map((review) => review.id)).toContain("boundary-end");
+    expect(normalizeReviewDate("2026-01-01")).toBe("2026-01-01");
+  });
+
+  it("invalid dates can be counted for diagnostics", () => {
+    expect(countInvalidDates([{ ...dataset[0], date: "not-a-date" }])).toBe(1);
   });
 
   it("representativeReviews length is capped at 8", () => {

@@ -10,8 +10,8 @@ import { randomUUID as uuid } from "crypto";
 
 const APP_ID = parseInt(process.env.APP_STORE_APP_ID || "1491726408", 10);
 const COUNTRY = process.env.APP_STORE_COUNTRY || "in";
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "1500", 10);
-const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_SOURCE || "5", 10);
+const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
+const MAX_PAGES = parseInt(process.env.MAX_PAGES_PER_SOURCE || "6", 10);
 
 export async function scrapeAppStore(
   fromDate: Date = SCRAPE_FROM,

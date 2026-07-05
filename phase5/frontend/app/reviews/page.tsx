@@ -80,6 +80,7 @@ export default function ReviewsPage() {
   const [filterSource, setFilterSource] = useState<ReviewSource | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [currentInsight, setCurrentInsight] = useState(0);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const reviewsRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 20;
 
@@ -157,6 +158,7 @@ export default function ReviewsPage() {
         sources_summary: buildCoveredSourceSummary(resp.sourcesUsed, representativeReviews),
         reviews: representativeReviews,
         message: resp.message ?? fallbackAnalysis.message,
+        sourceDiagnostics: resp.sourceDiagnostics,
       };
       setResult(mockResponse);
       setAnalysis(fallbackAnalysis);
@@ -185,6 +187,7 @@ export default function ReviewsPage() {
         sources_summary: buildCoveredSourceSummary(resp.sourcesUsed, representativeReviews),
         reviews: representativeReviews,
         message: resp.message ?? resp.analysis.message,
+        sourceDiagnostics: resp.sourceDiagnostics,
       }); 
       setAnalysis(resp.analysis);
       sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(resp.analysis));
@@ -336,6 +339,45 @@ export default function ReviewsPage() {
               </div>
             </section>
 
+            {result.sourceDiagnostics && result.sourceDiagnostics.length > 0 && (
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowDiagnostics((value) => !value)}
+                  className="w-full flex items-center justify-between gap-3 text-left"
+                  aria-expanded={showDiagnostics}
+                >
+                  <span className="font-semibold text-white text-sm uppercase tracking-wide">Source collection details</span>
+                  <span className="text-xs text-white/50">{showDiagnostics ? "Hide" : "Show"}</span>
+                </button>
+                {showDiagnostics && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {result.sourceDiagnostics.map((diag) => (
+                      <div key={diag.source} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <p className="font-semibold text-sm text-white">{diag.label}</p>
+                          <span className="text-[11px] rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-white/60">
+                            {diag.fetcherType.replace("_", " ")}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <DiagnosticMetric label="Live" value={diag.liveRawCount} />
+                          <DiagnosticMetric label="Fallback" value={diag.fallbackRawCount} />
+                          <DiagnosticMetric label="Used" value={diag.finalCountUsed} />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-white/50">
+                          <span>Fallback: {diag.fallbackUsed ? "Yes" : "No"}</span>
+                          <span>Invalid dates: {diag.invalidDateCount}</span>
+                          <span>Duplicates removed: {diag.removedDuplicateCount}</span>
+                        </div>
+                        {diag.reason && <p className="mt-2 text-xs text-white/45">Reason: {diag.reason}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             <section className="flex flex-col md:flex-row gap-3 mb-5">
               <input type="text" placeholder="Search review text…" value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -441,6 +483,15 @@ function formatAnalysisMode(mode: string) {
   if (normalized.includes("reliable")) return "Reliable";
   if (normalized.includes("groq")) return "Live AI";
   return "Analysis";
+}
+
+function DiagnosticMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg bg-white/5 px-3 py-2">
+      <p className="text-base font-bold text-white">{value}</p>
+      <p className="text-[11px] text-white/45">{label}</p>
+    </div>
+  );
 }
 
 function LoadingInsights({ loadStep, currentInsight }: { loadStep: number; currentInsight: number }) {

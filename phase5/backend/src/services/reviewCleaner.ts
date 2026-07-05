@@ -18,7 +18,10 @@ function hashText(str: string): string {
 export interface CleanStats {
   input: number;
   removed_empty: number;
+  removed_too_short: number;
+  removed_language: number;
   removed_duplicate: number;
+  removed_invalid_date: number;
   removed_pii_wiped: number;
   pii_masked: number;
   output: number;
@@ -28,7 +31,10 @@ export function cleanReviews(raw: Review[]): { reviews: Review[]; stats: CleanSt
   const stats: CleanStats = {
     input: raw.length,
     removed_empty: 0,
+    removed_too_short: 0,
+    removed_language: 0,
     removed_duplicate: 0,
+    removed_invalid_date: 0,
     removed_pii_wiped: 0,
     pii_masked: 0,
     output: 0,
@@ -38,12 +44,16 @@ export function cleanReviews(raw: Review[]): { reviews: Review[]; stats: CleanSt
   const cleaned: Review[] = [];
 
   for (const r of raw) {
-    if (!isValidText(r.text)) {
+    if (typeof r.text !== "string" || r.text.trim().length === 0) {
       stats.removed_empty++;
       continue;
     }
+    if (!isValidText(r.text)) {
+      stats.removed_too_short++;
+      continue;
+    }
 
-    const hash = hashText(r.text.trim().toLowerCase());
+    const hash = `${r.source}:${hashText(r.text.trim().toLowerCase())}`;
     if (seen.has(hash)) {
       stats.removed_duplicate++;
       continue;

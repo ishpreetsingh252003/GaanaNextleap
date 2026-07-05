@@ -16,7 +16,10 @@ describe("reviewCleaner", () => {
       expect(stats).toEqual({
         input: 0,
         removed_empty: 0,
+        removed_too_short: 0,
+        removed_language: 0,
         removed_duplicate: 0,
+        removed_invalid_date: 0,
         removed_pii_wiped: 0,
         pii_masked: 0,
         output: 0,
@@ -32,7 +35,8 @@ describe("reviewCleaner", () => {
       ];
       const { reviews, stats } = cleanReviews(raw);
       expect(reviews).toHaveLength(1);
-      expect(stats.removed_empty).toBe(3);
+      expect(stats.removed_empty).toBe(1);
+      expect(stats.removed_too_short).toBe(2);
       expect(stats.output).toBe(1);
     });
 
@@ -95,7 +99,7 @@ describe("reviewCleaner", () => {
       ];
       const { stats } = cleanReviews(raw);
       expect(stats.input).toBe(7);
-      expect(stats.removed_empty).toBe(1);
+      expect(stats.removed_too_short).toBe(1);
       expect(stats.removed_duplicate).toBe(2);
       expect(stats.removed_pii_wiped).toBe(1);
       expect(stats.output).toBe(3);
@@ -130,6 +134,35 @@ describe("reviewCleaner", () => {
       const { reviews } = cleanReviews(raw);
       expect(reviews).toHaveLength(2);
       expect(reviews[0].text).toMatch(/Love this app!/);
+    });
+
+    it("keeps short meaningful recommendation feedback", () => {
+      const { reviews, stats } = cleanReviews([
+        makeReview("recommendations are repetitive"),
+      ]);
+
+      expect(reviews).toHaveLength(1);
+      expect(stats.removed_too_short).toBe(0);
+    });
+
+    it("does not remove Hinglish feedback by default", () => {
+      const { reviews } = cleanReviews([
+        makeReview("Gaane repeat ho rahe hain, fresh songs chahiye"),
+      ]);
+
+      expect(reviews).toHaveLength(1);
+    });
+
+    it("dedupes exact duplicate bodies only within the same source", () => {
+      const raw = [
+        makeReview("Same songs repeat every day", "google_play"),
+        makeReview("Same songs repeat every day", "google_play"),
+        makeReview("Same songs repeat every day", "reddit"),
+      ];
+      const { reviews, stats } = cleanReviews(raw);
+
+      expect(reviews).toHaveLength(2);
+      expect(stats.removed_duplicate).toBe(1);
     });
   });
 });

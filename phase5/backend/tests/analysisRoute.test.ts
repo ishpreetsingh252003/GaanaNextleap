@@ -52,6 +52,8 @@ describe("analysis route reliable review workflow", () => {
     expect(response.body.totalReviews).toBeGreaterThanOrEqual(100);
     expect(response.body.sourcesUsed.length).toBe(6);
     expect(response.body.analysis.analysisMode).toBe("demo");
+    expect(response.body.sourceDiagnostics).toHaveLength(6);
+    expect(response.body.sourceDiagnostics.every((diag: any) => diag.finalCountUsed > 0)).toBe(true);
   });
 
   it("selected source collection failure still returns fallback-assisted analysis", async () => {
@@ -68,6 +70,13 @@ describe("analysis route reliable review workflow", () => {
     expect(response.body.success).toBe(true);
     expect(response.body.totalReviews).toBe(20);
     expect(response.body.message).toContain("reliable review data");
+    expect(response.body.sourceDiagnostics[0]).toMatchObject({
+      source: "google_play",
+      liveRawCount: 0,
+      fallbackUsed: true,
+      fallbackRawCount: 20,
+      finalCountUsed: 20,
+    });
   });
 
   it("returns a friendly zero state when no feedback matches", async () => {
@@ -84,6 +93,10 @@ describe("analysis route reliable review workflow", () => {
     expect(response.body.totalReviews).toBe(0);
     expect(response.body.representativeReviews).toEqual([]);
     expect(response.body.message).toContain("No feedback entries matched");
+    expect(response.body.sourceDiagnostics[0]).toMatchObject({
+      source: "google_play",
+      finalCountUsed: 0,
+    });
   });
 
   it("Groq failure after retries returns deterministic reliable analysis without technical errors", async () => {
@@ -131,6 +144,40 @@ describe("analysis route reliable review workflow", () => {
 
     expect(response.status).toBe(200);
     expect(synthesizeReviewInsightsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("fallback-only fetchers are reported honestly in diagnostics", async () => {
+    const response = await postAnalysis({
+      collectSources: true,
+      sources: ["twitter_web"],
+      startDate: "2026-01-01",
+      endDate: "2026-07-05",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.sourceDiagnostics[0]).toMatchObject({
+      source: "twitter_web",
+      attemptedLiveFetch: false,
+      fetcherType: "fallback_only",
+      reason: "public_no_auth_source_unavailable",
+    });
+  });
+
+  it("sourceDiagnostics final counts sum to totalReviews for source fallback runs", async () => {
+    runScrapingMock.mockRejectedValue(new Error("source blocked"));
+
+    const response = await postAnalysis({
+      collectSources: true,
+      sources: ["google_play", "app_store"],
+      startDate: "2026-01-01",
+      endDate: "2026-07-05",
+    });
+
+    const diagnosticTotal = response.body.sourceDiagnostics.reduce(
+      (sum: number, diag: any) => sum + diag.finalCountUsed,
+      0
+    );
+    expect(response.body.totalReviews).toBe(diagnosticTotal);
   });
 });
 

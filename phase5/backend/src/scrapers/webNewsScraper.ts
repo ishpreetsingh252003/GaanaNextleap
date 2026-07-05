@@ -9,7 +9,7 @@ import { Review, ScrapeResult } from "../types/review";
 import { isWithinRange, SCRAPE_FROM } from "../utils/dateFilter";
 import { randomUUID as uuid } from "crypto";
 
-const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "1500", 10);
+const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
 
 const DDG_QUERIES = [
   "gaana music app review 2026 india",
