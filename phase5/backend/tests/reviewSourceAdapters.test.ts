@@ -104,6 +104,20 @@ describe("review source adapters", () => {
     expect(result.error).toBe("missing_web_search_provider");
   });
 
+  it("reports missing_web_search_api_key when provider is configured without a key", async () => {
+    process.env = { ...originalEnv, WEB_SEARCH_PROVIDER: "brave" };
+    delete process.env.WEB_SEARCH_API_KEY;
+    delete process.env.BRAVE_SEARCH_API_KEY;
+    delete process.env.TAVILY_API_KEY;
+    delete process.env.SERPAPI_API_KEY;
+    vi.resetModules();
+
+    const { scrapeWebNews } = await import("../src/scrapers/webNewsScraper");
+    const result = await scrapeWebNews();
+
+    expect(result.error).toBe("missing_web_search_api_key");
+  });
+
   it("reports missing X bearer token without attempting brittle no-auth scraping", async () => {
     process.env = { ...originalEnv };
     delete process.env.X_BEARER_TOKEN;

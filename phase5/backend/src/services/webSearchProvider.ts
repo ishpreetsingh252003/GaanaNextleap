@@ -12,6 +12,9 @@ export function getConfiguredWebSearchProvider():
   | null {
   const provider = (process.env.WEB_SEARCH_PROVIDER || "").toLowerCase();
   const genericKey = process.env.WEB_SEARCH_API_KEY;
+  if (provider && !genericKey && !process.env.BRAVE_SEARCH_API_KEY && !process.env.TAVILY_API_KEY && !process.env.SERPAPI_API_KEY) {
+    throw new Error("missing_web_search_api_key");
+  }
   if ((provider === "brave" || process.env.BRAVE_SEARCH_API_KEY) && (genericKey || process.env.BRAVE_SEARCH_API_KEY)) {
     return { provider: "brave", apiKey: process.env.BRAVE_SEARCH_API_KEY || genericKey! };
   }
@@ -25,7 +28,13 @@ export function getConfiguredWebSearchProvider():
 }
 
 export async function searchPublicWeb(query: string, limit = 10): Promise<WebSearchResult[]> {
-  const config = getConfiguredWebSearchProvider();
+  let config: ReturnType<typeof getConfiguredWebSearchProvider>;
+  try {
+    config = getConfiguredWebSearchProvider();
+  } catch (err) {
+    if (err instanceof Error && err.message === "missing_web_search_api_key") throw err;
+    throw new Error("missing_web_search_provider");
+  }
   if (!config) throw new Error("missing_web_search_provider");
 
   if (config.provider === "brave") return searchBrave(query, config.apiKey, limit);

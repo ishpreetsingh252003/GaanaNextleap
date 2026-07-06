@@ -342,6 +342,7 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
     "reddit_auth_missing_public_fetch_used",
     "reddit_auth_missing_or_public_fetch_limited",
     "missing_web_search_provider",
+    "missing_web_search_api_key",
     "web_search_succeeded",
     "community_search_succeeded",
     "x_api_succeeded",

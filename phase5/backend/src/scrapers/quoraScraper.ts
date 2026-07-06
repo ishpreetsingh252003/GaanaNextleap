@@ -50,7 +50,9 @@ export async function scrapeQuora(
       source: "quora",
       fetched: 0,
       reviews: [],
-      error: msg.includes("missing_web_search_provider") ? "missing_web_search_provider" : "community_search_failed",
+      error: msg.includes("missing_web_search_api_key")
+        ? "missing_web_search_api_key"
+        : msg.includes("missing_web_search_provider") ? "missing_web_search_provider" : "community_search_failed",
     };
   }
 }

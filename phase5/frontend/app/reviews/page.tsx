@@ -521,6 +521,7 @@ function formatDiagnosticReason(reason: string) {
     web_search_succeeded: "Configured web search collection succeeded.",
     community_search_succeeded: "Configured community search collection succeeded.",
     missing_web_search_provider: "Live collection needs a configured search provider key.",
+    missing_web_search_api_key: "A web search provider is configured, but its API key is missing.",
     x_api_succeeded: "X API collection succeeded.",
     x_bearer_token_missing_public_no_auth_unavailable: "X needs a Bearer Token for live collection. Using fallback corpus for this source.",
     fallback_used_for_source: "Reliable source-level data was used for this source.",
