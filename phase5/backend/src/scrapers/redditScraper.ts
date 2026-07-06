@@ -1,5 +1,6 @@
 import axios from "axios";
-import { randomUUID as uuid } from "crypto";
+import { createHash, randomUUID as uuid } from "crypto";
+import { searchPublicWeb, WebSearchResult } from "../services/webSearchProvider";
 import { Review, ScrapeResult } from "../types/review";
 import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFilter";
 import { fetchWithRetry } from "../utils/http";
@@ -12,6 +13,16 @@ const QUERIES = [
   "Gaana playlist",
   "Gaana app review",
   "Gaana recommendations repetitive",
+];
+const WEB_SEARCH_QUERIES = [
+  "site:reddit.com Gaana app recommendations",
+  "site:reddit.com Gaana same songs",
+  "site:reddit.com Gaana music discovery",
+  "site:reddit.com Gaana playlist",
+  "site:reddit.com Gaana vs Spotify recommendations",
+  "site:reddit.com/r/india Gaana music app",
+  "site:reddit.com/r/IndianMusic Gaana recommendations",
+  "site:reddit.com Gaana app review music",
 ];
 
 interface RedditPost {
@@ -62,13 +73,33 @@ export async function scrapeReddit(
       console.warn("[Reddit] OAuth path failed:", oauthMessage);
     }
 
+    const webSearchReason =
+      oauthMessage === "reddit_credentials_missing"
+        ? "reddit_auth_missing_using_web_search"
+        : "reddit_oauth_failed_using_web_search";
+
+    try {
+      const reviews = await searchRedditWeb(fromDate, toDate);
+      return {
+        source: "reddit",
+        fetched: reviews.length,
+        reviews,
+        error: reviews.length > 0 ? webSearchReason : "reddit_web_search_no_results",
+      };
+    } catch (webErr) {
+      const webMessage = webErr instanceof Error ? webErr.message : String(webErr);
+      if (!["missing_web_search_provider", "missing_web_search_api_key", "reddit_web_search_no_results"].includes(webMessage)) {
+        console.warn("[Reddit] Web search path failed:", webMessage);
+      }
+    }
+
     try {
       const reviews = await searchRedditPublic(fromDate, toDate);
       return {
         source: "reddit",
         fetched: reviews.length,
         reviews,
-        error: reviews.length > 0 ? "reddit_auth_missing_public_fetch_used" : "reddit_auth_missing_or_public_fetch_limited",
+        error: reviews.length > 0 ? "reddit_public_json_succeeded" : "reddit_auth_missing_public_fetch_limited",
       };
     } catch (publicErr) {
       const publicMessage = publicErr instanceof Error ? publicErr.message : String(publicErr);
@@ -77,7 +108,7 @@ export async function scrapeReddit(
         source: "reddit",
         fetched: 0,
         reviews: [],
-        error: "reddit_auth_missing_or_public_fetch_limited",
+        error: "reddit_auth_missing_public_fetch_limited",
       };
     }
   }
@@ -120,6 +151,16 @@ async function searchRedditPublic(fromDate: Date, toDate: Date): Promise<Review[
   return normalizeRedditPosts(posts, fromDate, toDate);
 }
 
+export async function searchRedditWeb(fromDate: Date, toDate: Date): Promise<Review[]> {
+  const results: WebSearchResult[] = [];
+  for (const query of WEB_SEARCH_QUERIES) {
+    results.push(...await searchPublicWeb(query, 5));
+  }
+  const reviews = normalizeRedditSearchResults(results, fromDate, toDate);
+  if (reviews.length === 0) throw new Error("reddit_web_search_no_results");
+  return reviews;
+}
+
 function extractPosts(data: any): RedditPost[] {
   const children = data?.data?.children ?? [];
   return children
@@ -154,4 +195,50 @@ function normalizeRedditPosts(posts: RedditPost[], fromDate: Date, toDate: Date)
   }
 
   return reviews;
+}
+
+export function normalizeRedditSearchResults(
+  results: WebSearchResult[],
+  fromDate: Date,
+  toDate: Date
+): Review[] {
+  const seen = new Set<string>();
+  const reviews: Review[] = [];
+  const fallbackDate = normalizeReviewDate(Date.now()) || new Date().toISOString().slice(0, 10);
+
+  for (const result of results) {
+    const url = result.url?.trim();
+    const title = result.title?.trim();
+    const text = (result.snippet || title || "").trim();
+    if (!url || !title || !text || !url.includes("reddit.com")) continue;
+
+    const dedupeKey = normalizeRedditUrl(url) || title.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const date = normalizeReviewDate(result.date || "") || fallbackDate;
+    if (!isWithinRange(date, fromDate, toDate)) continue;
+
+    reviews.push({
+      id: `reddit-web-${hashStableId(dedupeKey)}`,
+      source: "reddit",
+      rating: null,
+      title,
+      text,
+      author: "Public Reddit search result",
+      date,
+      url,
+      lang: "en",
+    });
+  }
+
+  return reviews;
+}
+
+function normalizeRedditUrl(url: string): string {
+  return url.split("?")[0].split("#")[0].replace(/\/$/, "").toLowerCase();
+}
+
+function hashStableId(value: string): string {
+  return createHash("sha1").update(value).digest("hex").slice(0, 16);
 }

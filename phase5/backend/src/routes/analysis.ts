@@ -279,9 +279,9 @@ async function collectReviewsWithSourceFallback(
 function successReasonForSource(source: ScraperKey): string {
   if (source === "app_store") return "rss_fetch_succeeded";
   if (source === "reddit") {
-    return process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET
-      ? "reddit_oauth_succeeded"
-      : "reddit_auth_missing_public_fetch_used";
+    if (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET) return "reddit_oauth_succeeded";
+    if (hasConfiguredWebSearch()) return "reddit_web_search_succeeded";
+    return "reddit_public_json_succeeded";
   }
   if (source === "web_news") return "web_search_succeeded";
   if (source === "quora") return "community_search_succeeded";
@@ -339,8 +339,15 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
     "parser_returned_empty",
     "rss_fetch_failed",
     "reddit_oauth_succeeded",
+    "reddit_oauth_failed_using_web_search",
+    "reddit_auth_missing_using_web_search",
+    "reddit_web_search_succeeded",
+    "reddit_web_search_no_results",
+    "reddit_public_json_succeeded",
     "reddit_auth_missing_public_fetch_used",
     "reddit_auth_missing_or_public_fetch_limited",
+    "reddit_auth_missing_public_fetch_limited",
+    "reddit_fallback_assisted",
     "missing_web_search_provider",
     "missing_web_search_api_key",
     "web_search_succeeded",
@@ -352,6 +359,15 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
   if (message.includes("No public reviews")) return "live_fetch_returned_empty";
   if (getFetcherType(source) === "fallback_assisted") return "missing_web_search_provider";
   return getFetcherType(source) === "placeholder" ? "placeholder_fetcher" : "fallback_used_for_source";
+}
+
+function hasConfiguredWebSearch(): boolean {
+  return Boolean(
+    (process.env.WEB_SEARCH_PROVIDER && process.env.WEB_SEARCH_API_KEY) ||
+      process.env.BRAVE_SEARCH_API_KEY ||
+      process.env.TAVILY_API_KEY ||
+      process.env.SERPAPI_API_KEY
+  );
 }
 
 function reasonForMissingCredentialSource(source: ScraperKey): string {

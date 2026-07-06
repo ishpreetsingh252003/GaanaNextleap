@@ -44,8 +44,12 @@ function readinessReason(source: ReviewSource): string {
   if (source === "google_play") return "live_no_auth_available";
   if (source === "app_store") return process.env.APP_STORE_APP_ID ? "rss_fetch_configured" : "missing_app_store_app_id";
   if (source === "reddit") {
-    return process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET
-      ? "reddit_oauth_configured"
+    if (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET) return "reddit_oauth_configured";
+    if (process.env.WEB_SEARCH_PROVIDER && !process.env.WEB_SEARCH_API_KEY && !process.env.BRAVE_SEARCH_API_KEY && !process.env.TAVILY_API_KEY && !process.env.SERPAPI_API_KEY) {
+      return "missing_web_search_api_key";
+    }
+    return process.env.WEB_SEARCH_API_KEY || process.env.BRAVE_SEARCH_API_KEY || process.env.TAVILY_API_KEY || process.env.SERPAPI_API_KEY
+      ? "reddit_auth_missing_using_web_search"
       : "reddit_auth_missing_public_fetch_available";
   }
   if (source === "web_news" || source === "quora") {
