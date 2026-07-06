@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { runScraping, ScraperKey } from "../services/scrapeOrchestrator";
 import { ReviewSource } from "../types/review";
+import { buildSourceConfigDiagnostics } from "../services/sourceConfigDiagnostics";
 
 const router = Router();
 
@@ -80,6 +81,8 @@ router.post("/scrape", async (req: Request, res: Response) => {
       sources_summary: result.sources,
       errors: result.errors.length > 0 ? result.errors : undefined,
       reviews: result.reviews,
+      adapterDiagnostics: result.adapterDiagnostics,
+      sourceConfigDiagnostics: buildSourceConfigDiagnostics(),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown scraping error";

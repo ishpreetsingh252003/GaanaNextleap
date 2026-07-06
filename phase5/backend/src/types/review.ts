@@ -27,6 +27,7 @@ export interface ScrapeResult {
   fetched: number;
   reviews: Review[];
   error?: string;
+  diagnostics?: SourceAdapterDiagnostics;
 }
 
 export interface AggregatedResult {
@@ -35,4 +36,24 @@ export interface AggregatedResult {
   sources: Record<ReviewSource, number>;
   reviews: Review[];
   errors: { source: ReviewSource; message: string }[];
+  adapterDiagnostics?: SourceAdapterDiagnostics[];
+}
+
+export interface SourceAdapterDiagnostics {
+  source: ReviewSource;
+  apiAttempted: boolean;
+  apiStatusCode: number | null;
+  apiErrorType: string | null;
+  apiErrorMessageSafe: string | null;
+  rawResponseShape: string | null;
+  rawResultCount: number;
+  normalizedResultCount: number;
+  finalReason: string;
+  provider?: string | null;
+  requestAttempted?: boolean;
+  rssFetched?: boolean;
+  rssStatusCode?: number | null;
+  rssEntryCount?: number;
+  rssReviewLikeEntryCount?: number;
+  parsedReviewCount?: number;
 }

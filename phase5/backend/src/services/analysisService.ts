@@ -1,6 +1,6 @@
 import { FALLBACK_ANALYSIS } from "../data/fallbackAnalysis";
 import { fallbackReviews, FallbackReview } from "../data/fallbackData";
-import { Review, ReviewSource } from "../types/review";
+import { Review, ReviewSource, SourceAdapterDiagnostics } from "../types/review";
 import { normalizeReviewDate } from "../utils/dateFilter";
 
 export const VALID_REVIEW_SOURCES: ReviewSource[] = [
@@ -73,6 +73,20 @@ export interface SourceDiagnostic {
   removedInvalidDateCount: number;
   fallbackUsed: boolean;
   reason?: string;
+  apiAttempted?: boolean;
+  apiStatusCode?: number | null;
+  apiErrorType?: string | null;
+  apiErrorMessageSafe?: string | null;
+  rawResponseShape?: string | null;
+  rawResultCount?: number;
+  normalizedResultCount?: number;
+  finalReason?: string;
+  provider?: string | null;
+  rssFetched?: boolean;
+  rssStatusCode?: number | null;
+  rssEntryCount?: number;
+  rssReviewLikeEntryCount?: number;
+  parsedReviewCount?: number;
 }
 
 export function fallbackToReview(review: FallbackReview): Review {

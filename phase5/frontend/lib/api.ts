@@ -32,6 +32,7 @@ export interface ScrapeResponse {
   reviews: Review[];
   message?: string;
   sourceDiagnostics?: SourceDiagnostic[];
+  sourceConfigDiagnostics?: SourceConfigDiagnostics;
 }
 
 export interface SourceDiagnostic {
@@ -55,6 +56,38 @@ export interface SourceDiagnostic {
   removedInvalidDateCount: number;
   fallbackUsed: boolean;
   reason?: string;
+  apiAttempted?: boolean;
+  apiStatusCode?: number | null;
+  apiErrorType?: string | null;
+  apiErrorMessageSafe?: string | null;
+  rawResponseShape?: string | null;
+  rawResultCount?: number;
+  normalizedResultCount?: number;
+  finalReason?: string;
+  provider?: string | null;
+  rssFetched?: boolean;
+  rssStatusCode?: number | null;
+  rssEntryCount?: number;
+  rssReviewLikeEntryCount?: number;
+  parsedReviewCount?: number;
+}
+
+export interface SourceConfigDiagnostics {
+  appStoreAppIdPresent: boolean;
+  appStoreAppIdLength: number;
+  appStoreCountry: string;
+  webSearchProviderRaw: string | null;
+  webSearchProviderResolved: string | null;
+  webSearchApiKeyPresent: boolean;
+  webSearchApiKeyLength: number;
+  tavilyApiKeyPresent: boolean;
+  braveSearchApiKeyPresent: boolean;
+  serpApiKeyPresent: boolean;
+  redditUserAgentPresent: boolean;
+  redditClientIdPresent: boolean;
+  redditClientSecretPresent: boolean;
+  nodeEnv: string | null;
+  runtime: "render" | "local" | "unknown";
 }
 
 export interface SourceInfo {
@@ -211,14 +244,14 @@ export const analyzeReviews = (
   endDate?: string,
   collectSources?: boolean
 ) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; sourceConfigDiagnostics?: SourceConfigDiagnostics; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
     { method: "POST", body: JSON.stringify({ reviews, sources, startDate, endDate, collectSources }) }
   );
 
 /** Request the pre-generated fallback analysis (no Groq call) */
 export const loadFallbackAnalysis = (sources?: ReviewSource[], startDate?: string, endDate?: string) =>
-  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
+  apiFetch<{ success: boolean; total_reviews_submitted: number; totalReviews?: number; sourcesUsed?: ReviewSource[]; sourceDiagnostics?: SourceDiagnostic[]; sourceConfigDiagnostics?: SourceConfigDiagnostics; representativeReviews?: Review[]; message?: string; analysis: AnalysisResult }>(
     "/api/analysis/review-analysis",
     { method: "POST", body: JSON.stringify({ useFallback: true, reviews: [], sources, startDate, endDate }) }
   );

@@ -159,6 +159,7 @@ export default function ReviewsPage() {
         reviews: representativeReviews,
         message: resp.message ?? fallbackAnalysis.message,
         sourceDiagnostics: resp.sourceDiagnostics,
+        sourceConfigDiagnostics: resp.sourceConfigDiagnostics,
       };
       setResult(mockResponse);
       setAnalysis(fallbackAnalysis);
@@ -188,6 +189,7 @@ export default function ReviewsPage() {
         reviews: representativeReviews,
         message: resp.message ?? resp.analysis.message,
         sourceDiagnostics: resp.sourceDiagnostics,
+        sourceConfigDiagnostics: resp.sourceConfigDiagnostics,
       }); 
       setAnalysis(resp.analysis);
       sessionStorage.setItem("gaanaReviewAnalysis", JSON.stringify(resp.analysis));
@@ -351,28 +353,54 @@ export default function ReviewsPage() {
                   <span className="text-xs text-white/50">{showDiagnostics ? "Hide" : "Show"}</span>
                 </button>
                 {showDiagnostics && (
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {result.sourceDiagnostics.map((diag) => (
-                      <div key={diag.source} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                          <p className="font-semibold text-sm text-white">{diag.label}</p>
-                          <span className="text-[11px] rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-white/60">
-                            {formatFetcherType(diag.fetcherType)}
-                          </span>
+                  <div className="mt-4 space-y-3">
+                    {result.sourceConfigDiagnostics && (
+                      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <p className="font-semibold text-sm text-white mb-3">Backend source config</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                          <DiagnosticMetric label="App ID" value={result.sourceConfigDiagnostics.appStoreAppIdPresent ? `Yes (${result.sourceConfigDiagnostics.appStoreAppIdLength})` : "No"} />
+                          <DiagnosticMetric label="Country" value={result.sourceConfigDiagnostics.appStoreCountry} />
+                          <DiagnosticMetric label="Provider" value={result.sourceConfigDiagnostics.webSearchProviderResolved || "None"} />
+                          <DiagnosticMetric label="Web key" value={result.sourceConfigDiagnostics.webSearchApiKeyPresent ? `Yes (${result.sourceConfigDiagnostics.webSearchApiKeyLength})` : "No"} />
+                          <DiagnosticMetric label="Tavily key" value={result.sourceConfigDiagnostics.tavilyApiKeyPresent ? "Yes" : "No"} />
+                          <DiagnosticMetric label="Brave key" value={result.sourceConfigDiagnostics.braveSearchApiKeyPresent ? "Yes" : "No"} />
+                          <DiagnosticMetric label="Reddit UA" value={result.sourceConfigDiagnostics.redditUserAgentPresent ? "Yes" : "No"} />
+                          <DiagnosticMetric label="Runtime" value={result.sourceConfigDiagnostics.runtime} />
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <DiagnosticMetric label="Live" value={diag.liveRawCount} />
-                          <DiagnosticMetric label="Fallback" value={diag.fallbackRawCount} />
-                          <DiagnosticMetric label="Used" value={diag.finalCountUsed} />
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-white/50">
-                          <span>Fallback: {diag.fallbackUsed ? "Yes" : "No"}</span>
-                          <span>Invalid dates: {diag.invalidDateCount}</span>
-                          <span>Duplicates removed: {diag.removedDuplicateCount}</span>
-                        </div>
-                        {diag.reason && <p className="mt-2 text-xs text-white/45">{formatDiagnosticReason(diag.reason)}</p>}
                       </div>
-                    ))}
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {result.sourceDiagnostics.map((diag) => (
+                        <div key={diag.source} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <p className="font-semibold text-sm text-white">{diag.label}</p>
+                            <span className="text-[11px] rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-white/60">
+                              {formatFetcherType(diag.fetcherType)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <DiagnosticMetric label="Live" value={diag.liveRawCount} />
+                            <DiagnosticMetric label="Fallback" value={diag.fallbackRawCount} />
+                            <DiagnosticMetric label="Used" value={diag.finalCountUsed} />
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <DiagnosticMetric label="API" value={diag.apiAttempted ? "Attempted" : "Not attempted"} />
+                            <DiagnosticMetric label="Status" value={diag.apiStatusCode ?? "n/a"} />
+                            <DiagnosticMetric label="Raw" value={diag.rawResultCount ?? 0} />
+                            <DiagnosticMetric label="Normalized" value={diag.normalizedResultCount ?? diag.liveRawCount} />
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-white/50">
+                            <span>Fallback: {diag.fallbackUsed ? "Yes" : "No"}</span>
+                            <span>Invalid dates: {diag.invalidDateCount}</span>
+                            <span>Duplicates removed: {diag.removedDuplicateCount}</span>
+                            {diag.provider && <span>Provider: {diag.provider}</span>}
+                            {diag.rawResponseShape && <span>Shape: {diag.rawResponseShape}</span>}
+                          </div>
+                          {diag.apiErrorType && <p className="mt-2 text-xs text-white/45">API note: {diag.apiErrorType}{diag.apiErrorMessageSafe ? ` (${diag.apiErrorMessageSafe})` : ""}</p>}
+                          {diag.reason && <p className="mt-2 text-xs text-white/45">{formatDiagnosticReason(diag.reason)}</p>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </section>
@@ -485,7 +513,7 @@ function formatAnalysisMode(mode: string) {
   return "Analysis";
 }
 
-function DiagnosticMetric({ label, value }: { label: string; value: number }) {
+function DiagnosticMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-lg bg-white/5 px-3 py-2">
       <p className="text-base font-bold text-white">{value}</p>
@@ -520,13 +548,18 @@ function formatDiagnosticReason(reason: string) {
     reddit_auth_missing_using_web_search: "Reddit OAuth unavailable; using public Reddit search results.",
     reddit_web_search_succeeded: "Reddit public discussions via web search.",
     reddit_web_search_no_results: "Reddit public search returned no matching discussion signals.",
+    reddit_web_search_failed: "Reddit public search was unavailable; reliable data was used.",
     reddit_public_json_succeeded: "Reddit public JSON collection succeeded.",
     reddit_auth_missing_public_fetch_used: "Reddit credentials are missing; public JSON collection was used.",
     reddit_auth_missing_or_public_fetch_limited: "Reddit live access limited; using reliable Reddit discussion corpus.",
     reddit_auth_missing_public_fetch_limited: "Reddit live access limited; using reliable Reddit discussion corpus.",
     reddit_fallback_assisted: "Reddit live access limited; using reliable Reddit discussion corpus.",
     web_search_succeeded: "Configured web search collection succeeded.",
+    web_search_no_results: "Configured web search returned no matching results.",
+    web_search_failed: "Configured web search was unavailable; reliable data was used.",
     community_search_succeeded: "Configured community search collection succeeded.",
+    community_search_no_results: "Configured community search returned no matching results.",
+    community_search_failed: "Configured community search was unavailable; reliable data was used.",
     missing_web_search_provider: "Live collection needs a configured search provider key.",
     missing_web_search_api_key: "A web search provider is configured, but its API key is missing.",
     x_api_succeeded: "X API collection succeeded.",

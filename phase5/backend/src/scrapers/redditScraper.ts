@@ -1,7 +1,7 @@
 import axios from "axios";
 import { createHash, randomUUID as uuid } from "crypto";
-import { searchPublicWeb, WebSearchResult } from "../services/webSearchProvider";
-import { Review, ScrapeResult } from "../types/review";
+import { searchPublicWebWithDiagnostics, toSourceAdapterDiagnostics, WebSearchResult } from "../services/webSearchProvider";
+import { Review, ScrapeResult, SourceAdapterDiagnostics } from "../types/review";
 import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFilter";
 import { fetchWithRetry } from "../utils/http";
 
@@ -61,12 +61,13 @@ export async function scrapeReddit(
   try {
     const token = await getRedditOAuthToken();
     const reviews = await searchRedditOAuth(token, fromDate, toDate);
-    return {
-      source: "reddit",
-      fetched: reviews.length,
-      reviews,
-      error: reviews.length === 0 ? "reddit_oauth_returned_empty" : undefined,
-    };
+      return {
+        source: "reddit",
+        fetched: reviews.length,
+        reviews,
+        diagnostics: buildBasicDiagnostics("reddit_oauth_succeeded", true, reviews.length, reviews.length),
+        error: reviews.length === 0 ? "reddit_oauth_returned_empty" : undefined,
+      };
   } catch (oauthErr) {
     const oauthMessage = oauthErr instanceof Error ? oauthErr.message : String(oauthErr);
     if (oauthMessage !== "reddit_credentials_missing") {
@@ -79,11 +80,15 @@ export async function scrapeReddit(
         : "reddit_oauth_failed_using_web_search";
 
     try {
-      const reviews = await searchRedditWeb(fromDate, toDate);
+      const { reviews, diagnostics } = await searchRedditWebWithDiagnostics(fromDate, toDate);
       return {
         source: "reddit",
         fetched: reviews.length,
         reviews,
+        diagnostics: {
+          ...diagnostics,
+          finalReason: reviews.length > 0 ? "reddit_web_search_succeeded" : "reddit_web_search_no_results",
+        },
         error: reviews.length > 0 ? webSearchReason : "reddit_web_search_no_results",
       };
     } catch (webErr) {
@@ -99,6 +104,12 @@ export async function scrapeReddit(
         source: "reddit",
         fetched: reviews.length,
         reviews,
+        diagnostics: buildBasicDiagnostics(
+          reviews.length > 0 ? "reddit_public_json_succeeded" : "reddit_auth_missing_public_fetch_limited",
+          true,
+          reviews.length,
+          reviews.length
+        ),
         error: reviews.length > 0 ? "reddit_public_json_succeeded" : "reddit_auth_missing_public_fetch_limited",
       };
     } catch (publicErr) {
@@ -108,6 +119,7 @@ export async function scrapeReddit(
         source: "reddit",
         fetched: 0,
         reviews: [],
+        diagnostics: buildBasicDiagnostics("reddit_auth_missing_public_fetch_limited", true, 0, 0, "network_or_timeout", publicMessage.slice(0, 120)),
         error: "reddit_auth_missing_public_fetch_limited",
       };
     }
@@ -152,13 +164,37 @@ async function searchRedditPublic(fromDate: Date, toDate: Date): Promise<Review[
 }
 
 export async function searchRedditWeb(fromDate: Date, toDate: Date): Promise<Review[]> {
+  const { reviews } = await searchRedditWebWithDiagnostics(fromDate, toDate);
+  return reviews;
+}
+
+export async function searchRedditWebWithDiagnostics(
+  fromDate: Date,
+  toDate: Date
+): Promise<{ reviews: Review[]; diagnostics: SourceAdapterDiagnostics }> {
   const results: WebSearchResult[] = [];
+  let rawResultCount = 0;
+  let lastDiagnostics: SourceAdapterDiagnostics | undefined;
   for (const query of WEB_SEARCH_QUERIES) {
-    results.push(...await searchPublicWeb(query, 5));
+    const response = await searchPublicWebWithDiagnostics(query, 5);
+    results.push(...response.results);
+    rawResultCount += response.diagnostics.rawResultCount;
+    lastDiagnostics = toSourceAdapterDiagnostics("reddit", {
+      ...response.diagnostics,
+      rawResultCount,
+      normalizedResultCount: results.length,
+    }, "reddit_auth_missing_using_web_search");
   }
   const reviews = normalizeRedditSearchResults(results, fromDate, toDate);
   if (reviews.length === 0) throw new Error("reddit_web_search_no_results");
-  return reviews;
+  return {
+    reviews,
+    diagnostics: {
+      ...(lastDiagnostics ?? buildBasicDiagnostics("reddit_web_search_no_results", true, rawResultCount, 0)),
+      normalizedResultCount: reviews.length,
+      finalReason: "reddit_web_search_succeeded",
+    },
+  };
 }
 
 function extractPosts(data: any): RedditPost[] {
@@ -241,4 +277,26 @@ function normalizeRedditUrl(url: string): string {
 
 function hashStableId(value: string): string {
   return createHash("sha1").update(value).digest("hex").slice(0, 16);
+}
+
+function buildBasicDiagnostics(
+  finalReason: string,
+  apiAttempted: boolean,
+  rawResultCount: number,
+  normalizedResultCount: number,
+  apiErrorType: string | null = null,
+  apiErrorMessageSafe: string | null = null
+): SourceAdapterDiagnostics {
+  return {
+    source: "reddit",
+    apiAttempted,
+    requestAttempted: apiAttempted,
+    apiStatusCode: null,
+    apiErrorType,
+    apiErrorMessageSafe,
+    rawResponseShape: null,
+    rawResultCount,
+    normalizedResultCount,
+    finalReason,
+  };
 }

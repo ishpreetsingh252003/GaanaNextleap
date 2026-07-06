@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import getGroqService, { GroqService } from "../services/groqService";
-import { Review } from "../types/review";
+import { Review, SourceAdapterDiagnostics } from "../types/review";
+import { buildSourceConfigDiagnostics } from "../services/sourceConfigDiagnostics";
 import { runScraping, ScraperKey } from "../services/scrapeOrchestrator";
 import {
   buildAnalysisMetadata,
@@ -58,6 +59,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     return res.json({
       ...buildZeroMatchPayload(filters),
       sourceDiagnostics,
+      sourceConfigDiagnostics: buildSourceConfigDiagnostics(),
     });
   }
 
@@ -66,6 +68,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     const response = shapeAnalysisResponse(fallbackAnalysis, filteredReviews, filters, true);
     response.message = `Showing representative reviews from ${totalReviews} demo feedback entries across all sources.`;
     (response as any).sourceDiagnostics = sourceDiagnostics;
+    (response as any).sourceConfigDiagnostics = buildSourceConfigDiagnostics();
     response.analysis.message = response.message;
     response.analysis.analysisMode = "demo";
     response.analysis.analysis_mode = "demo";
@@ -113,6 +116,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
 
     const response = shapeAnalysisResponse(analysis, filteredReviews, filters, false);
     (response as any).sourceDiagnostics = sourceDiagnostics;
+    (response as any).sourceConfigDiagnostics = buildSourceConfigDiagnostics();
     if (sourceDataset.some((review) => review.id.startsWith("fallback-") || review.author === "Public feedback")) {
       response.message = "Some public sources were limited, so reliable review data was used for those sources.";
       response.analysis.message = response.message;
@@ -128,6 +132,7 @@ router.post("/review-analysis", async (req: Request, res: Response) => {
     const response = shapeAnalysisResponse(fallbackAnalysis, filteredReviews, filters, true);
     response.message = "Some sources or AI calls were limited, so this run used reliable analysis from available feedback data.";
     (response as any).sourceDiagnostics = sourceDiagnostics;
+    (response as any).sourceConfigDiagnostics = buildSourceConfigDiagnostics();
     response.analysis.message = response.message;
     response.analysis.analysisMode = "reliable_analysis";
     response.analysis.analysis_mode = "reliable_analysis";
@@ -234,9 +239,11 @@ async function collectReviewsWithSourceFallback(
       }
       const result = await withTimeout(runScraping([source], fromDate, toDate), SOURCE_FETCH_TIMEOUT_MS);
       if (result.reviews.length === 0) {
-        throw new Error(result.errors[0]?.message || "live_fetch_returned_empty");
+        const error = new Error(result.errors[0]?.message || "live_fetch_returned_empty") as Error & { adapterDiagnostic?: SourceAdapterDiagnostics };
+        error.adapterDiagnostic = result.adapterDiagnostics?.[0];
+        throw error;
       }
-      return result.reviews;
+      return { reviews: result.reviews, adapterDiagnostic: result.adapterDiagnostics?.[0] };
     })
   );
 
@@ -245,9 +252,9 @@ async function collectReviewsWithSourceFallback(
     const source = selectedSources[index];
     const fallbackForSource = filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
     if (result.status === "fulfilled") {
-      return result.value.length >= MIN_LIVE_SOURCE_COUNT
-        ? result.value
-        : [...result.value, ...fallbackForSource];
+      return result.value.reviews.length >= MIN_LIVE_SOURCE_COUNT
+        ? result.value.reviews
+        : [...result.value.reviews, ...fallbackForSource];
     }
     const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
     console.warn(`[AnalysisRoute] Source ${source} limited; using reliable review data.`);
@@ -257,18 +264,22 @@ async function collectReviewsWithSourceFallback(
   for (let index = 0; index < selectedSources.length; index++) {
     const source = selectedSources[index];
     const result = settled[index];
-    const liveForSource = result.status === "fulfilled" ? result.value : [];
-    const fallbackForSource = result.status === "fulfilled" && result.value.length >= MIN_LIVE_SOURCE_COUNT
+    const liveForSource = result.status === "fulfilled" ? result.value.reviews : [];
+    const adapterDiagnostic = result.status === "fulfilled"
+      ? result.value.adapterDiagnostic
+      : (result.reason as Error & { adapterDiagnostic?: SourceAdapterDiagnostics })?.adapterDiagnostic;
+    const fallbackForSource = result.status === "fulfilled" && result.value.reviews.length >= MIN_LIVE_SOURCE_COUNT
       ? []
       : filterReviews(fallbackDataset, { sources: [source], startDate, endDate });
     const reason =
       result.status === "fulfilled"
-        ? result.value.length >= MIN_LIVE_SOURCE_COUNT ? successReasonForSource(source) : "live_fetch_returned_limited"
+        ? result.value.reviews.length >= MIN_LIVE_SOURCE_COUNT ? successReasonForSource(source, adapterDiagnostic) : (adapterDiagnostic?.finalReason || "live_fetch_returned_limited")
         : reasonForFetchFailure(source, result.reason);
     diagnostics.push(
       buildDiagnosticForSource(source, liveForSource, fallbackForSource, {
         attemptedLiveFetch: getFetcherType(source) !== "fallback_only",
         reason,
+        adapterDiagnostic,
       }, startDate, endDate)
     );
   }
@@ -276,7 +287,8 @@ async function collectReviewsWithSourceFallback(
   return { reviews, diagnostics };
 }
 
-function successReasonForSource(source: ScraperKey): string {
+function successReasonForSource(source: ScraperKey, adapterDiagnostic?: SourceAdapterDiagnostics): string {
+  if (adapterDiagnostic?.finalReason) return adapterDiagnostic.finalReason;
   if (source === "app_store") return "rss_fetch_succeeded";
   if (source === "reddit") {
     if (process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET) return "reddit_oauth_succeeded";
@@ -293,7 +305,7 @@ function buildDiagnosticForSource(
   source: ScraperKey,
   liveReviews: Review[],
   fallbackReviews: Review[],
-  options: { attemptedLiveFetch: boolean; reason: string },
+  options: { attemptedLiveFetch: boolean; reason: string; adapterDiagnostic?: SourceAdapterDiagnostics },
   startDate?: string,
   endDate?: string
 ): SourceDiagnostic {
@@ -305,6 +317,7 @@ function buildDiagnosticForSource(
   const fallbackUsed = fallbackForSource.length > 0;
   const fetcherType = getFetcherType(source);
 
+  const adapter = options.adapterDiagnostic;
   return {
     source,
     label: sourceLabel(source),
@@ -326,6 +339,20 @@ function buildDiagnosticForSource(
     removedInvalidDateCount: invalidDateCount,
     fallbackUsed,
     reason: fallbackUsed && options.reason === "live_fetch_succeeded" ? "fallback_used_for_source" : options.reason,
+    apiAttempted: adapter?.apiAttempted ?? false,
+    apiStatusCode: adapter?.apiStatusCode ?? null,
+    apiErrorType: adapter?.apiErrorType ?? null,
+    apiErrorMessageSafe: adapter?.apiErrorMessageSafe ?? null,
+    rawResponseShape: adapter?.rawResponseShape ?? null,
+    rawResultCount: adapter?.rawResultCount ?? liveForSource.length,
+    normalizedResultCount: adapter?.normalizedResultCount ?? liveForSource.length,
+    finalReason: adapter?.finalReason ?? options.reason,
+    provider: adapter?.provider ?? null,
+    rssFetched: adapter?.rssFetched,
+    rssStatusCode: adapter?.rssStatusCode,
+    rssEntryCount: adapter?.rssEntryCount,
+    rssReviewLikeEntryCount: adapter?.rssReviewLikeEntryCount,
+    parsedReviewCount: adapter?.parsedReviewCount,
   };
 }
 
@@ -343,6 +370,7 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
     "reddit_auth_missing_using_web_search",
     "reddit_web_search_succeeded",
     "reddit_web_search_no_results",
+    "reddit_web_search_failed",
     "reddit_public_json_succeeded",
     "reddit_auth_missing_public_fetch_used",
     "reddit_auth_missing_or_public_fetch_limited",
@@ -351,7 +379,11 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
     "missing_web_search_provider",
     "missing_web_search_api_key",
     "web_search_succeeded",
+    "web_search_no_results",
+    "web_search_failed",
     "community_search_succeeded",
+    "community_search_no_results",
+    "community_search_failed",
     "x_api_succeeded",
     "x_bearer_token_missing_public_no_auth_unavailable",
   ].includes(message)) return message;

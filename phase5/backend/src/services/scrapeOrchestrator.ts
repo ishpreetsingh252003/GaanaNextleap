@@ -48,6 +48,9 @@ export async function runScraping(
   }
 
   const allRaw = results.flatMap((r) => r.reviews);
+  const adapterDiagnostics = results
+    .map((r) => r.diagnostics)
+    .filter((diagnostic): diagnostic is NonNullable<typeof diagnostic> => Boolean(diagnostic));
   const { reviews: cleaned, stats } = cleanReviews(allRaw);
 
   const sourceCounts = {} as Record<ReviewSource, number>;
@@ -73,5 +76,6 @@ export async function runScraping(
     sources: sourceCounts,
     reviews: cleaned,
     errors,
+    adapterDiagnostics,
   };
 }
