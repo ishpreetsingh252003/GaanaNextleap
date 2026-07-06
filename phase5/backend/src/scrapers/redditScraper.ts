@@ -23,10 +23,12 @@ const WEB_SEARCH_QUERIES = [
   "Gaana vs Spotify reddit",
   "Gaana app review reddit",
   "Gaana music discovery reddit",
+  "Gaana app complaints reddit",
   "site:reddit.com Gaana app",
   "site:reddit.com Gaana music",
   "site:reddit.com Gaana recommendations",
   "site:reddit.com Gaana vs Spotify",
+  "site:reddit.com Gaana playlist",
 ];
 
 interface RedditPost {
@@ -97,6 +99,7 @@ export async function scrapeReddit(
       };
     } catch (webErr) {
       const webMessage = webErr instanceof Error ? webErr.message : String(webErr);
+      var webFailureDiagnostics = (webErr as Error & { diagnostics?: SourceAdapterDiagnostics }).diagnostics;
       if (!["missing_web_search_provider", "missing_web_search_api_key", "reddit_web_search_no_results"].includes(webMessage)) {
         console.warn("[Reddit] Web search path failed:", webMessage);
       }
@@ -108,7 +111,7 @@ export async function scrapeReddit(
         source: "reddit",
         fetched: reviews.length,
         reviews,
-        diagnostics: buildBasicDiagnostics(
+        diagnostics: reviews.length === 0 && webFailureDiagnostics ? webFailureDiagnostics : buildBasicDiagnostics(
           reviews.length > 0 ? "reddit_public_json_succeeded" : "reddit_auth_missing_public_fetch_limited",
           true,
           reviews.length,
@@ -123,7 +126,7 @@ export async function scrapeReddit(
         source: "reddit",
         fetched: 0,
         reviews: [],
-        diagnostics: buildBasicDiagnostics("reddit_auth_missing_public_fetch_limited", true, 0, 0, "network_or_timeout", publicMessage.slice(0, 120)),
+        diagnostics: webFailureDiagnostics ?? buildBasicDiagnostics("reddit_auth_missing_public_fetch_limited", true, 0, 0, "network_or_timeout", publicMessage.slice(0, 120)),
         error: "reddit_auth_missing_public_fetch_limited",
       };
     }
@@ -178,34 +181,82 @@ export async function searchRedditWebWithDiagnostics(
 ): Promise<{ reviews: Review[]; diagnostics: SourceAdapterDiagnostics }> {
   const results: WebSearchResult[] = [];
   let rawResultCount = 0;
-  let sourceFilteredCount = 0;
+  let urlFilterRemoved = 0;
+  const sampleResults: SourceAdapterDiagnostics["sampleResults"] = [];
   let lastDiagnostics: SourceAdapterDiagnostics | undefined;
   for (const query of WEB_SEARCH_QUERIES) {
     const response = await searchPublicWebWithDiagnostics(query, 5);
-    const redditLikeResults = response.results.filter(isRedditSearchSignal);
-    results.push(...redditLikeResults);
+    const usableResults = response.results.filter((result) => {
+      if (sampleResults.length < 3) {
+        sampleResults.push({
+          title: result.title || "",
+          url: result.url || "",
+          hasSnippet: Boolean(result.snippet),
+        });
+      }
+      if (result.url || result.title || result.snippet) return true;
+      urlFilterRemoved++;
+      return false;
+    });
+    results.push(...usableResults);
     rawResultCount += response.diagnostics.rawResultCount;
-    sourceFilteredCount += redditLikeResults.length;
     lastDiagnostics = toSourceAdapterDiagnostics("reddit", {
       ...response.diagnostics,
       rawResultCount,
       normalizedResultCount: results.length,
       queriesAttempted: WEB_SEARCH_QUERIES,
-      sourceFilteredCount,
+      sourceFilteredCount: results.length,
+      providerRawResultsCount: rawResultCount,
+      afterUrlFilterCount: results.length,
+      sampleResults,
     }, "reddit_auth_missing_using_web_search");
   }
-  const { reviews, dateInferredCount, dateDroppedCount } = normalizeRedditSearchResultsWithStats(results, fromDate, toDate);
-  if (reviews.length === 0) throw new Error("reddit_web_search_no_results");
+  const stats = normalizeRedditSearchResultsWithStats(results, fromDate, toDate, urlFilterRemoved);
+  const { reviews, dateInferredCount, dateDroppedCount } = stats;
+  if (reviews.length === 0) {
+    const error = new Error("reddit_web_search_no_results") as Error & { diagnostics?: SourceAdapterDiagnostics };
+    error.diagnostics = {
+      ...(lastDiagnostics ?? buildBasicDiagnostics("reddit_web_search_no_results", true, rawResultCount, 0)),
+      normalizedResultCount: 0,
+      queriesAttempted: WEB_SEARCH_QUERIES,
+      sourceFilteredCount: results.length,
+      dateInferredCount,
+      dateDroppedCount,
+      finalAfterDateFilterCount: 0,
+      providerRawResultsCount: rawResultCount,
+      afterUrlFilterCount: results.length,
+      afterTitleSnippetFilterCount: stats.afterTitleSnippetFilterCount,
+      afterNormalizationCount: 0,
+      missingDateAssignedCount: dateInferredCount,
+      afterDateFilterCount: 0,
+      afterDedupeCount: stats.afterDedupeCount,
+      finalLiveCount: 0,
+      dropReasonBreakdown: stats.dropReasonBreakdown,
+      sampleResults,
+      finalReason: "reddit_web_search_no_results",
+    };
+    throw error;
+  }
   return {
     reviews,
     diagnostics: {
       ...(lastDiagnostics ?? buildBasicDiagnostics("reddit_web_search_no_results", true, rawResultCount, 0)),
       normalizedResultCount: reviews.length,
       queriesAttempted: WEB_SEARCH_QUERIES,
-      sourceFilteredCount,
+      sourceFilteredCount: results.length,
       dateInferredCount,
       dateDroppedCount,
       finalAfterDateFilterCount: reviews.length,
+      providerRawResultsCount: rawResultCount,
+      afterUrlFilterCount: results.length,
+      afterTitleSnippetFilterCount: stats.afterTitleSnippetFilterCount,
+      afterNormalizationCount: reviews.length,
+      missingDateAssignedCount: dateInferredCount,
+      afterDateFilterCount: reviews.length,
+      afterDedupeCount: stats.afterDedupeCount,
+      finalLiveCount: reviews.length,
+      dropReasonBreakdown: stats.dropReasonBreakdown,
+      sampleResults,
       finalReason: "reddit_web_search_succeeded",
     },
   };
@@ -258,22 +309,40 @@ export function normalizeRedditSearchResults(
 export function normalizeRedditSearchResultsWithStats(
   results: WebSearchResult[],
   fromDate: Date,
-  toDate: Date
-): { reviews: Review[]; dateInferredCount: number; dateDroppedCount: number } {
+  toDate: Date,
+  urlFilterRemoved = 0
+): {
+  reviews: Review[];
+  dateInferredCount: number;
+  dateDroppedCount: number;
+  afterTitleSnippetFilterCount: number;
+  afterDedupeCount: number;
+  dropReasonBreakdown: SourceAdapterDiagnostics["dropReasonBreakdown"];
+} {
   const seen = new Set<string>();
   const reviews: Review[] = [];
   const fallbackDate = normalizeReviewDate(Date.now()) || new Date().toISOString().slice(0, 10);
   let dateInferredCount = 0;
   let dateDroppedCount = 0;
+  let missingTitleOrBodyRemoved = 0;
+  let duplicateRemoved = 0;
+  let afterTitleSnippetFilterCount = 0;
 
   for (const result of results) {
     const url = result.url?.trim();
     const title = result.title?.trim();
     const text = (result.snippet || title || "").trim();
-    if (!url || !title || !text || !isRedditSearchSignal(result)) continue;
+    if (!url || !title || !text) {
+      missingTitleOrBodyRemoved++;
+      continue;
+    }
+    afterTitleSnippetFilterCount++;
 
     const dedupeKey = normalizeRedditUrl(url) || title.toLowerCase();
-    if (seen.has(dedupeKey)) continue;
+    if (seen.has(dedupeKey)) {
+      duplicateRemoved++;
+      continue;
+    }
     seen.add(dedupeKey);
 
     const providerDate = normalizeReviewDate(result.date || "");
@@ -301,12 +370,20 @@ export function normalizeRedditSearchResultsWithStats(
     });
   }
 
-  return { reviews, dateInferredCount, dateDroppedCount };
-}
-
-function isRedditSearchSignal(result: WebSearchResult): boolean {
-  const haystack = `${result.url || ""} ${result.title || ""} ${result.snippet || ""}`.toLowerCase();
-  return haystack.includes("reddit");
+  return {
+    reviews,
+    dateInferredCount,
+    dateDroppedCount,
+    afterTitleSnippetFilterCount,
+    afterDedupeCount: seen.size,
+    dropReasonBreakdown: {
+      url_filter_removed: urlFilterRemoved,
+      missing_title_or_body_removed: missingTitleOrBodyRemoved,
+      date_filter_removed: dateDroppedCount,
+      duplicate_removed: duplicateRemoved,
+      other_removed: 0,
+    },
+  };
 }
 
 function normalizeRedditUrl(url: string): string {
@@ -340,6 +417,22 @@ function buildBasicDiagnostics(
     dateInferredCount: 0,
     dateDroppedCount: 0,
     finalAfterDateFilterCount: normalizedResultCount,
+    providerRawResultsCount: rawResultCount,
+    afterUrlFilterCount: normalizedResultCount,
+    afterTitleSnippetFilterCount: normalizedResultCount,
+    afterNormalizationCount: normalizedResultCount,
+    missingDateAssignedCount: 0,
+    afterDateFilterCount: normalizedResultCount,
+    afterDedupeCount: normalizedResultCount,
+    finalLiveCount: normalizedResultCount,
+    dropReasonBreakdown: {
+      url_filter_removed: 0,
+      missing_title_or_body_removed: 0,
+      date_filter_removed: 0,
+      duplicate_removed: 0,
+      other_removed: 0,
+    },
+    sampleResults: [],
     finalReason,
   };
 }

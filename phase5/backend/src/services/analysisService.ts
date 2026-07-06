@@ -92,6 +92,22 @@ export interface SourceDiagnostic {
   dateInferredCount?: number;
   dateDroppedCount?: number;
   finalAfterDateFilterCount?: number;
+  providerRawResultsCount?: number;
+  afterUrlFilterCount?: number;
+  afterTitleSnippetFilterCount?: number;
+  afterNormalizationCount?: number;
+  missingDateAssignedCount?: number;
+  finalLiveCount?: number;
+  fallbackCount?: number;
+  dropReasonBreakdown?: {
+    url_filter_removed: number;
+    missing_title_or_body_removed: number;
+    date_filter_removed: number;
+    duplicate_removed: number;
+    other_removed: number;
+  };
+  sampleResults?: { title: string; url: string; hasSnippet: boolean }[];
+  xBearerTokenPresent?: boolean;
 }
 
 export function fallbackToReview(review: FallbackReview): Review {

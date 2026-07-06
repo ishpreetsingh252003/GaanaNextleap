@@ -14,6 +14,10 @@ const WEB_NEWS_QUERIES = [
   "Gaana vs Spotify recommendations",
   "Gaana app user reviews",
   "Gaana music streaming India reviews",
+  "Gaana app not recommending songs",
+  "Gaana app same songs",
+  "Gaana app recommendation issue",
+  "Gaana app playlist issue",
 ];
 
 export async function scrapeWebNews(
@@ -25,6 +29,9 @@ export async function scrapeWebNews(
   let rawResultCount = 0;
   let dateInferredCount = 0;
   let dateDroppedCount = 0;
+  let missingTitleOrBodyRemoved = 0;
+  let duplicateRemoved = 0;
+  const sampleResults: SourceAdapterDiagnostics["sampleResults"] = [];
   let lastDiagnostics: SourceAdapterDiagnostics | undefined;
 
   try {
@@ -32,8 +39,26 @@ export async function scrapeWebNews(
       const { results, diagnostics } = await searchPublicWebWithDiagnostics(query, 5);
       rawResultCount += diagnostics.rawResultCount;
       for (const result of results) {
-        if (seenUrls.has(result.url)) continue;
-        seenUrls.add(result.url);
+        if (sampleResults.length < 3) {
+          sampleResults.push({
+            title: result.title || "",
+            url: result.url || "",
+            hasSnippet: Boolean(result.snippet),
+          });
+        }
+        const url = result.url?.trim();
+        const title = result.title?.trim();
+        const text = (result.snippet || result.title || "").trim();
+        if (!url || !title || !text) {
+          missingTitleOrBodyRemoved++;
+          continue;
+        }
+        const dedupeKey = normalizeUrl(url) || `${title}:${text}`.toLowerCase();
+        if (seenUrls.has(dedupeKey)) {
+          duplicateRemoved++;
+          continue;
+        }
+        seenUrls.add(dedupeKey);
         const providerDate = normalizeReviewDate(result.date);
         const date = providerDate || normalizeReviewDate(new Date())!;
         if (!providerDate) dateInferredCount++;
@@ -41,34 +66,45 @@ export async function scrapeWebNews(
           dateDroppedCount++;
           continue;
         }
-        const text = (result.snippet || result.title || "").trim();
-        if (!result.title || !text || !result.url) continue;
-        const id = `web-news-${hashStableId(`${result.url}:${result.title}`)}`;
+        const id = `web-news-${hashStableId(`${url}:${title}`)}`;
         reviews.push({
           id,
           review_id: id,
           source: "web_news",
           platform: "web_news",
           rating: null,
-          title: result.title,
+          title,
           text,
           body: text,
           author: "public_web_result",
           date,
           dateSource: providerDate ? "provider" : "inferred_current_date",
-          url: result.url,
+          url,
           lang: "en",
         });
       }
+      const stageDiagnostics = buildStageDiagnostics({
+        rawResultCount,
+        afterUrlFilterCount: rawResultCount,
+        afterTitleSnippetFilterCount: rawResultCount - missingTitleOrBodyRemoved,
+        afterDedupeCount: seenUrls.size,
+        finalLiveCount: reviews.length,
+        dateInferredCount,
+        dateDroppedCount,
+        missingTitleOrBodyRemoved,
+        duplicateRemoved,
+        sampleResults,
+      });
       lastDiagnostics = toSourceAdapterDiagnostics("web_news", {
         ...diagnostics,
         rawResultCount,
         normalizedResultCount: reviews.length,
         queriesAttempted: WEB_NEWS_QUERIES,
-        sourceFilteredCount: seenUrls.size,
+        sourceFilteredCount: rawResultCount,
         dateInferredCount,
         dateDroppedCount,
         finalAfterDateFilterCount: reviews.length,
+        ...stageDiagnostics,
       }, reviews.length === 0 ? "web_search_no_results" : "web_search_succeeded");
     }
 
@@ -113,10 +149,66 @@ function buildFallbackDiagnostics(finalReason: string): SourceAdapterDiagnostics
     dateInferredCount: 0,
     dateDroppedCount: 0,
     finalAfterDateFilterCount: 0,
+    providerRawResultsCount: 0,
+    afterUrlFilterCount: 0,
+    afterTitleSnippetFilterCount: 0,
+    afterNormalizationCount: 0,
+    missingDateAssignedCount: 0,
+    afterDateFilterCount: 0,
+    afterDedupeCount: 0,
+    finalLiveCount: 0,
+    dropReasonBreakdown: emptyDropReasons(),
+    sampleResults: [],
     finalReason,
   };
 }
 
 function hashStableId(value: string): string {
   return createHash("sha1").update(value).digest("hex").slice(0, 16);
+}
+
+function normalizeUrl(url: string): string {
+  return url.split("?")[0].split("#")[0].replace(/\/$/, "").toLowerCase();
+}
+
+function buildStageDiagnostics(input: {
+  rawResultCount: number;
+  afterUrlFilterCount: number;
+  afterTitleSnippetFilterCount: number;
+  afterDedupeCount: number;
+  finalLiveCount: number;
+  dateInferredCount: number;
+  dateDroppedCount: number;
+  missingTitleOrBodyRemoved: number;
+  duplicateRemoved: number;
+  sampleResults: SourceAdapterDiagnostics["sampleResults"];
+}) {
+  return {
+    providerRawResultsCount: input.rawResultCount,
+    afterUrlFilterCount: input.afterUrlFilterCount,
+    afterTitleSnippetFilterCount: input.afterTitleSnippetFilterCount,
+    afterNormalizationCount: input.finalLiveCount,
+    missingDateAssignedCount: input.dateInferredCount,
+    afterDateFilterCount: input.finalLiveCount,
+    afterDedupeCount: input.afterDedupeCount,
+    finalLiveCount: input.finalLiveCount,
+    dropReasonBreakdown: {
+      url_filter_removed: input.rawResultCount - input.afterUrlFilterCount,
+      missing_title_or_body_removed: input.missingTitleOrBodyRemoved,
+      date_filter_removed: input.dateDroppedCount,
+      duplicate_removed: input.duplicateRemoved,
+      other_removed: 0,
+    },
+    sampleResults: input.sampleResults,
+  };
+}
+
+function emptyDropReasons() {
+  return {
+    url_filter_removed: 0,
+    missing_title_or_body_removed: 0,
+    date_filter_removed: 0,
+    duplicate_removed: 0,
+    other_removed: 0,
+  };
 }

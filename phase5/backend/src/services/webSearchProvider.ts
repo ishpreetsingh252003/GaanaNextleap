@@ -23,6 +23,16 @@ export interface WebSearchDiagnostics {
   dateInferredCount?: number;
   dateDroppedCount?: number;
   finalAfterDateFilterCount?: number;
+  providerRawResultsCount?: number;
+  afterUrlFilterCount?: number;
+  afterTitleSnippetFilterCount?: number;
+  afterNormalizationCount?: number;
+  missingDateAssignedCount?: number;
+  afterDateFilterCount?: number;
+  afterDedupeCount?: number;
+  finalLiveCount?: number;
+  dropReasonBreakdown?: SourceAdapterDiagnostics["dropReasonBreakdown"];
+  sampleResults?: SourceAdapterDiagnostics["sampleResults"];
 }
 
 export function getConfiguredWebSearchProvider():
@@ -157,6 +167,16 @@ export function toSourceAdapterDiagnostics(
     dateInferredCount: (diagnostics as any).dateInferredCount,
     dateDroppedCount: (diagnostics as any).dateDroppedCount,
     finalAfterDateFilterCount: (diagnostics as any).finalAfterDateFilterCount,
+    providerRawResultsCount: diagnostics.providerRawResultsCount,
+    afterUrlFilterCount: diagnostics.afterUrlFilterCount,
+    afterTitleSnippetFilterCount: diagnostics.afterTitleSnippetFilterCount,
+    afterNormalizationCount: diagnostics.afterNormalizationCount,
+    missingDateAssignedCount: diagnostics.missingDateAssignedCount,
+    afterDateFilterCount: diagnostics.afterDateFilterCount,
+    afterDedupeCount: diagnostics.afterDedupeCount,
+    finalLiveCount: diagnostics.finalLiveCount,
+    dropReasonBreakdown: diagnostics.dropReasonBreakdown,
+    sampleResults: diagnostics.sampleResults,
   };
 }
 

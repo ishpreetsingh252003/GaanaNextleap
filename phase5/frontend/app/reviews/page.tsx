@@ -399,7 +399,16 @@ export default function ReviewsPage() {
                             {typeof diag.sourceFilteredCount === "number" && <span>After source filter: {diag.sourceFilteredCount}</span>}
                             {typeof diag.dateInferredCount === "number" && <span>Dates inferred: {diag.dateInferredCount}</span>}
                             {typeof diag.dateDroppedCount === "number" && <span>Date dropped: {diag.dateDroppedCount}</span>}
+                            {typeof diag.providerRawResultsCount === "number" && <span>Provider raw: {diag.providerRawResultsCount}</span>}
+                            {typeof diag.afterTitleSnippetFilterCount === "number" && <span>Title/body kept: {diag.afterTitleSnippetFilterCount}</span>}
+                            {typeof diag.afterDedupeCount === "number" && <span>After dedupe: {diag.afterDedupeCount}</span>}
+                            {typeof diag.finalLiveCount === "number" && <span>Final live: {diag.finalLiveCount}</span>}
                           </div>
+                          {diag.dropReasonBreakdown && (
+                            <p className="mt-2 text-[11px] text-white/40">
+                              Dropped: URL {diag.dropReasonBreakdown.url_filter_removed}, missing text {diag.dropReasonBreakdown.missing_title_or_body_removed}, date {diag.dropReasonBreakdown.date_filter_removed}, duplicate {diag.dropReasonBreakdown.duplicate_removed}
+                            </p>
+                          )}
                           {diag.apiErrorType && <p className="mt-2 text-xs text-white/45">API note: {diag.apiErrorType}{diag.apiErrorMessageSafe ? ` (${diag.apiErrorMessageSafe})` : ""}</p>}
                           {diag.reason && <p className="mt-2 text-xs text-white/45">{formatDiagnosticReason(diag.reason)}</p>}
                         </div>
@@ -568,7 +577,7 @@ function formatDiagnosticReason(reason: string) {
     missing_web_search_provider: "Live collection needs a configured search provider key.",
     missing_web_search_api_key: "A web search provider is configured, but its API key is missing.",
     x_api_succeeded: "X API collection succeeded.",
-    x_bearer_token_missing_public_no_auth_unavailable: "X needs a Bearer Token for live collection. Using fallback corpus for this source.",
+    x_bearer_token_missing_public_no_auth_unavailable: "X/Twitter requires a bearer token for live access; fallback discussion corpus used.",
     fallback_used_for_source: "Reliable source-level data was used for this source.",
   };
   return labels[reason] || `Reason: ${reason.replace(/_/g, " ")}`;

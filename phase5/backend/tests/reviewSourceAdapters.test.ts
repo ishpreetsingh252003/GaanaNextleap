@@ -179,6 +179,11 @@ describe("review source adapters", () => {
         rawResponseShape: diagnostics.rawResponseShape,
         rawResultCount: diagnostics.rawResultCount,
         normalizedResultCount: diagnostics.normalizedResultCount,
+        providerRawResultsCount: diagnostics.providerRawResultsCount,
+        afterTitleSnippetFilterCount: diagnostics.afterTitleSnippetFilterCount,
+        afterDedupeCount: diagnostics.afterDedupeCount,
+        missingDateAssignedCount: diagnostics.missingDateAssignedCount,
+        dropReasonBreakdown: diagnostics.dropReasonBreakdown,
         finalReason,
         provider: diagnostics.provider,
       }),
@@ -241,6 +246,26 @@ describe("review source adapters", () => {
 
     expect(reviews).toHaveLength(1);
     expect(reviews[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("does not filter Reddit search results to zero when title and url exist", async () => {
+    const { normalizeRedditSearchResultsWithStats } = await import("../src/scrapers/redditScraper");
+
+    const result = normalizeRedditSearchResultsWithStats([{
+      title: "Gaana recommendations reddit discussion",
+      snippet: "",
+      url: "https://search.example.com/result-about-gaana-reddit",
+      date: null,
+    }], new Date("2000-01-01"), new Date("2100-01-01"));
+
+    expect(result.reviews).toHaveLength(1);
+    expect(result.reviews[0]).toMatchObject({
+      source: "reddit",
+      platform: "reddit",
+      dateSource: "inferred_current_date",
+    });
+    expect(result.afterTitleSnippetFilterCount).toBe(1);
+    expect(result.dropReasonBreakdown?.missing_title_or_body_removed).toBe(0);
   });
 
   it("falls back to Reddit public JSON when web search is unavailable", async () => {
@@ -441,6 +466,11 @@ describe("review source adapters", () => {
         rawResponseShape: diagnostics.rawResponseShape,
         rawResultCount: diagnostics.rawResultCount,
         normalizedResultCount: diagnostics.normalizedResultCount,
+        providerRawResultsCount: diagnostics.providerRawResultsCount,
+        afterTitleSnippetFilterCount: diagnostics.afterTitleSnippetFilterCount,
+        afterDedupeCount: diagnostics.afterDedupeCount,
+        missingDateAssignedCount: diagnostics.missingDateAssignedCount,
+        dropReasonBreakdown: diagnostics.dropReasonBreakdown,
         finalReason,
         provider: diagnostics.provider,
       }),
@@ -470,6 +500,11 @@ describe("review source adapters", () => {
         rawResponseShape: diagnostics.rawResponseShape,
         rawResultCount: diagnostics.rawResultCount,
         normalizedResultCount: diagnostics.normalizedResultCount,
+        providerRawResultsCount: diagnostics.providerRawResultsCount,
+        afterTitleSnippetFilterCount: diagnostics.afterTitleSnippetFilterCount,
+        afterDedupeCount: diagnostics.afterDedupeCount,
+        missingDateAssignedCount: diagnostics.missingDateAssignedCount,
+        dropReasonBreakdown: diagnostics.dropReasonBreakdown,
         finalReason,
         provider: diagnostics.provider,
       }),
@@ -481,7 +516,43 @@ describe("review source adapters", () => {
 
     expect(searchPublicWebMock).toHaveBeenCalled();
     expect(result.error).toBeUndefined();
-    expect(result.diagnostics).toMatchObject({ apiStatusCode: 200, rawResultCount: 10, finalReason: "web_search_succeeded" });
+    expect(result.diagnostics).toMatchObject({ apiStatusCode: 200, rawResultCount: 14, finalReason: "web_search_succeeded" });
+    expect(result.diagnostics?.providerRawResultsCount).toBe(14);
+    expect(result.diagnostics?.afterTitleSnippetFilterCount).toBe(14);
+  });
+
+  it("keeps Web/News search results when title and url exist without snippet", async () => {
+    process.env = { ...originalEnv, WEB_SEARCH_PROVIDER: "brave", WEB_SEARCH_API_KEY: "search-key" };
+    const searchPublicWebMock = vi.fn(async () => ({
+      results: [{ title: "Gaana app same songs", snippet: "", url: `https://example.com/gaana-${Math.random()}`, date: null }],
+      diagnostics: { provider: "brave", requestAttempted: true, statusCode: 200, rawResponseShape: "object{web}", rawResultCount: 1, normalizedResultCount: 1, errorType: null, errorMessageSafe: null },
+    }));
+    vi.doMock("../src/services/webSearchProvider", () => ({
+      searchPublicWebWithDiagnostics: searchPublicWebMock,
+      toSourceAdapterDiagnostics: (source: string, diagnostics: any, finalReason: string) => ({
+        source,
+        apiAttempted: true,
+        apiStatusCode: diagnostics.statusCode,
+        rawResponseShape: diagnostics.rawResponseShape,
+        rawResultCount: diagnostics.rawResultCount,
+        normalizedResultCount: diagnostics.normalizedResultCount,
+        providerRawResultsCount: diagnostics.providerRawResultsCount,
+        afterTitleSnippetFilterCount: diagnostics.afterTitleSnippetFilterCount,
+        afterDedupeCount: diagnostics.afterDedupeCount,
+        missingDateAssignedCount: diagnostics.missingDateAssignedCount,
+        dropReasonBreakdown: diagnostics.dropReasonBreakdown,
+        finalReason,
+        provider: diagnostics.provider,
+      }),
+    }));
+    vi.resetModules();
+
+    const { scrapeWebNews } = await import("../src/scrapers/webNewsScraper");
+    const result = await scrapeWebNews(new Date("2000-01-01"), new Date("2100-01-01"));
+
+    expect(result.reviews.length).toBeGreaterThan(0);
+    expect(result.reviews.every((review) => review.source === "web_news")).toBe(true);
+    expect(result.diagnostics?.dropReasonBreakdown?.missing_title_or_body_removed).toBe(0);
   });
 
   it("keeps Web/News search results without dates in the selected recent range", async () => {
@@ -544,6 +615,11 @@ describe("review source adapters", () => {
     const result = await scrapeTwitter();
 
     expect(result.error).toBe("x_bearer_token_missing_public_no_auth_unavailable");
+    expect(result.diagnostics).toMatchObject({
+      xBearerTokenPresent: false,
+      finalReason: "x_bearer_token_missing_public_no_auth_unavailable",
+      apiAttempted: false,
+    });
   });
 
   it("keeps Reddit web search diagnostic labels user-readable in the frontend", () => {

@@ -1,5 +1,5 @@
 import { randomUUID as uuid } from "crypto";
-import { Review, ScrapeResult } from "../types/review";
+import { Review, ScrapeResult, SourceAdapterDiagnostics } from "../types/review";
 import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFilter";
 import { fetchWithRetry } from "../utils/http";
 
@@ -20,6 +20,7 @@ export async function scrapeTwitter(
       source: "twitter_web",
       fetched: 0,
       reviews: [],
+      diagnostics: buildTwitterDiagnostics("x_bearer_token_missing_public_no_auth_unavailable", false),
       error: "x_bearer_token_missing_public_no_auth_unavailable",
     };
   }
@@ -65,11 +66,35 @@ export async function scrapeTwitter(
       source: "twitter_web",
       fetched: reviews.length,
       reviews,
+      diagnostics: buildTwitterDiagnostics(reviews.length === 0 ? "x_api_returned_empty" : "x_api_succeeded", true, reviews.length),
       error: reviews.length === 0 ? "x_api_returned_empty" : undefined,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[X] API fetch failed:", msg);
-    return { source: "twitter_web", fetched: 0, reviews: [], error: "x_api_failed" };
+    return { source: "twitter_web", fetched: 0, reviews: [], diagnostics: buildTwitterDiagnostics("x_api_failed", true, 0, "network_or_timeout", msg.slice(0, 120)), error: "x_api_failed" };
   }
+}
+
+function buildTwitterDiagnostics(
+  finalReason: string,
+  xBearerTokenPresent: boolean,
+  count = 0,
+  apiErrorType: string | null = null,
+  apiErrorMessageSafe: string | null = null
+): SourceAdapterDiagnostics {
+  return {
+    source: "twitter_web",
+    apiAttempted: xBearerTokenPresent,
+    requestAttempted: xBearerTokenPresent,
+    apiStatusCode: null,
+    apiErrorType,
+    apiErrorMessageSafe,
+    rawResponseShape: null,
+    rawResultCount: count,
+    normalizedResultCount: count,
+    finalReason,
+    xBearerTokenPresent,
+    finalLiveCount: count,
+  };
 }

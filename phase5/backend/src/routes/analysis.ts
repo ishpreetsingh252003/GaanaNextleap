@@ -358,6 +358,16 @@ function buildDiagnosticForSource(
     dateInferredCount: adapter?.dateInferredCount,
     dateDroppedCount: adapter?.dateDroppedCount,
     finalAfterDateFilterCount: adapter?.finalAfterDateFilterCount,
+    providerRawResultsCount: adapter?.providerRawResultsCount,
+    afterUrlFilterCount: adapter?.afterUrlFilterCount,
+    afterTitleSnippetFilterCount: adapter?.afterTitleSnippetFilterCount,
+    afterNormalizationCount: adapter?.afterNormalizationCount,
+    missingDateAssignedCount: adapter?.missingDateAssignedCount,
+    finalLiveCount: adapter?.finalLiveCount ?? liveForSource.length,
+    fallbackCount: fallbackForSource.length,
+    dropReasonBreakdown: adapter?.dropReasonBreakdown,
+    sampleResults: adapter?.sampleResults,
+    xBearerTokenPresent: adapter?.xBearerTokenPresent,
   };
 }
 
