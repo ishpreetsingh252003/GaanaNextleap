@@ -395,6 +395,10 @@ export default function ReviewsPage() {
                             <span>Duplicates removed: {diag.removedDuplicateCount}</span>
                             {diag.provider && <span>Provider: {diag.provider}</span>}
                             {diag.rawResponseShape && <span>Shape: {diag.rawResponseShape}</span>}
+                            {diag.queriesAttempted?.length ? <span>Queries: {diag.queriesAttempted.length}</span> : null}
+                            {typeof diag.sourceFilteredCount === "number" && <span>After source filter: {diag.sourceFilteredCount}</span>}
+                            {typeof diag.dateInferredCount === "number" && <span>Dates inferred: {diag.dateInferredCount}</span>}
+                            {typeof diag.dateDroppedCount === "number" && <span>Date dropped: {diag.dateDroppedCount}</span>}
                           </div>
                           {diag.apiErrorType && <p className="mt-2 text-xs text-white/45">API note: {diag.apiErrorType}{diag.apiErrorMessageSafe ? ` (${diag.apiErrorMessageSafe})` : ""}</p>}
                           {diag.reason && <p className="mt-2 text-xs text-white/45">{formatDiagnosticReason(diag.reason)}</p>}
@@ -542,6 +546,7 @@ function formatDiagnosticReason(reason: string) {
     missing_app_store_app_id: "App Store live collection needs APP_STORE_APP_ID.",
     rss_fetch_succeeded: "App Store RSS collection succeeded.",
     rss_returned_empty: "App Store RSS returned no matching reviews.",
+    rss_returned_no_review_entries: "App Store RSS responded, but no review entries were returned.",
     parser_returned_empty: "App Store RSS responded, but no review entries were parsed.",
     reddit_oauth_succeeded: "Reddit OAuth collection succeeded.",
     reddit_oauth_failed_using_web_search: "Reddit OAuth was unavailable; using public Reddit search results.",

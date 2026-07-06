@@ -64,6 +64,11 @@ async function main() {
         `final=${finalCount}`,
         `fallbackUsed=${fallbackUsed}`,
         `reason=${reason}`,
+        `queries=${adapter?.queriesAttempted?.length ?? 0}`,
+        `sourceFiltered=${adapter?.sourceFilteredCount ?? adapter?.normalizedResultCount ?? 0}`,
+        `datesInferred=${adapter?.dateInferredCount ?? 0}`,
+        `datesDropped=${adapter?.dateDroppedCount ?? 0}`,
+        `afterDate=${adapter?.finalAfterDateFilterCount ?? liveCount}`,
         `errorType=${adapter?.apiErrorType ?? "none"}`,
         `shape=${adapter?.rawResponseShape ?? "n/a"}`,
       ].join(" | ")

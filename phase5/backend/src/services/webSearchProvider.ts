@@ -18,6 +18,11 @@ export interface WebSearchDiagnostics {
   normalizedResultCount: number;
   errorType: string | null;
   errorMessageSafe: string | null;
+  queriesAttempted?: string[];
+  sourceFilteredCount?: number;
+  dateInferredCount?: number;
+  dateDroppedCount?: number;
+  finalAfterDateFilterCount?: number;
 }
 
 export function getConfiguredWebSearchProvider():
@@ -147,6 +152,11 @@ export function toSourceAdapterDiagnostics(
     normalizedResultCount: diagnostics.normalizedResultCount,
     finalReason,
     provider: diagnostics.provider,
+    queriesAttempted: (diagnostics as any).queriesAttempted,
+    sourceFilteredCount: (diagnostics as any).sourceFilteredCount,
+    dateInferredCount: (diagnostics as any).dateInferredCount,
+    dateDroppedCount: (diagnostics as any).dateDroppedCount,
+    finalAfterDateFilterCount: (diagnostics as any).finalAfterDateFilterCount,
   };
 }
 

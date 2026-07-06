@@ -8,8 +8,6 @@ import { isWithinRange, normalizeReviewDate, SCRAPE_FROM } from "../utils/dateFi
 import { fetchWithRetry, sleep } from "../utils/http";
 import { describeShape } from "../services/webSearchProvider";
 
-const APP_ID = process.env.APP_STORE_APP_ID || "";
-const COUNTRY = (process.env.APP_STORE_COUNTRY || "in").toLowerCase();
 const DELAY_MS = parseInt(process.env.SCRAPE_DELAY_MS || "250", 10);
 const MAX_PAGES = parseInt(process.env.APP_STORE_RSS_PAGES || "2", 10);
 
@@ -28,7 +26,7 @@ export function getAppStoreRssEntries(feed: any): AppStoreRssEntry[] {
   return Array.isArray(entry) ? entry : [entry];
 }
 
-export function parseAppStoreRssReviews(feed: any, appId: string, country = COUNTRY): Review[] {
+export function parseAppStoreRssReviews(feed: any, appId: string, country = (process.env.APP_STORE_COUNTRY || "in").toLowerCase()): Review[] {
   const entries = getAppStoreRssEntries(feed);
 
   return entries
@@ -60,7 +58,9 @@ export async function scrapeAppStore(
   fromDate: Date = SCRAPE_FROM,
   toDate: Date = new Date()
 ): Promise<ScrapeResult> {
-  if (!APP_ID) {
+  const appId = process.env.APP_STORE_APP_ID || "";
+  const country = (process.env.APP_STORE_COUNTRY || "in").toLowerCase();
+  if (!appId) {
     return {
       source: "app_store",
       fetched: 0,
@@ -75,52 +75,51 @@ export async function scrapeAppStore(
 
   const reviews: Review[] = [];
   let lastDiagnostics = buildAppStoreDiagnostics({ apiAttempted: false, finalReason: "rss_fetch_failed" });
+  let totalEntries = 0;
+  let totalReviewLikeEntries = 0;
+  let totalParsed = 0;
 
   try {
     for (let page = 0; page <= MAX_PAGES; page++) {
       await sleep(DELAY_MS);
       const pagePrefix = page === 0 ? "" : `/page=${page}`;
-      const url = `https://itunes.apple.com/${COUNTRY}/rss/customerreviews${pagePrefix}/id=${APP_ID}/sortBy=mostRecent/json`;
+      const url = `https://itunes.apple.com/${country}/rss/customerreviews${pagePrefix}/id=${appId}/sortBy=mostRecent/json`;
       const response = await fetchWithRetry(url, {
         headers: { Accept: "application/json" },
       }, 1);
       const entries = getAppStoreRssEntries(response.data);
-      const parsed = parseAppStoreRssReviews(response.data, APP_ID, COUNTRY);
+      const reviewLikeEntries = entries.filter(isReviewLikeEntry);
+      const parsed = parseAppStoreRssReviews(response.data, appId, country);
+      totalEntries += entries.length;
+      totalReviewLikeEntries += reviewLikeEntries.length;
+      totalParsed += parsed.length;
       lastDiagnostics = buildAppStoreDiagnostics({
         apiAttempted: true,
         statusCode: response.status,
         rawResponseShape: describeShape(response.data),
-        rssEntryCount: entries.length,
-        rssReviewLikeEntryCount: entries.filter(isReviewLikeEntry).length,
-        parsedReviewCount: parsed.length,
-        finalReason: parsed.length === 0 ? "parser_returned_empty" : "rss_fetch_succeeded",
+        rssEntryCount: totalEntries,
+        rssReviewLikeEntryCount: totalReviewLikeEntries,
+        parsedReviewCount: totalParsed,
+        finalReason: totalParsed === 0 ? appStoreEmptyReason(totalEntries, totalReviewLikeEntries) : "rss_fetch_succeeded",
       });
-
-      if (parsed.length === 0 && page === 0) {
-        return {
-          source: "app_store",
-          fetched: 0,
-          reviews: [],
-          error: "parser_returned_empty",
-          diagnostics: lastDiagnostics,
-        };
-      }
 
       const filtered = parsed.filter((review) => isWithinRange(review.date, fromDate, toDate));
       reviews.push(...filtered);
       console.log(`[AppStoreRSS] Page ${page}: raw=${parsed.length}, filtered=${filtered.length}`);
-      if (parsed.length === 0) break;
     }
 
+    const finalReason = reviews.length === 0
+      ? totalParsed === 0 ? appStoreEmptyReason(totalEntries, totalReviewLikeEntries) : "rss_returned_empty"
+      : "rss_fetch_succeeded";
     return {
       source: "app_store",
       fetched: reviews.length,
       reviews,
-      error: reviews.length === 0 ? "rss_returned_empty" : undefined,
+      error: reviews.length === 0 ? finalReason : undefined,
       diagnostics: {
         ...lastDiagnostics,
         normalizedResultCount: reviews.length,
-        finalReason: reviews.length === 0 ? "rss_returned_empty" : "rss_fetch_succeeded",
+        finalReason,
       },
     };
   } catch (err) {
@@ -142,6 +141,12 @@ export async function scrapeAppStore(
       }),
     };
   }
+}
+
+function appStoreEmptyReason(entryCount: number, reviewLikeEntryCount: number): string {
+  if (entryCount === 0) return "rss_returned_empty";
+  if (reviewLikeEntryCount === 0) return "rss_returned_no_review_entries";
+  return "parser_returned_empty";
 }
 
 function isReviewLikeEntry(entry: AppStoreRssEntry): boolean {

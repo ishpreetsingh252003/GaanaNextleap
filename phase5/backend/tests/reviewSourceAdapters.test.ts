@@ -95,6 +95,38 @@ describe("review source adapters", () => {
     expect(parseAppStoreRssReviews(feed, "585270521", "in")).toHaveLength(1);
   });
 
+  it("distinguishes App Store RSS with no review entries from parser failure", async () => {
+    process.env = { ...originalEnv, APP_STORE_APP_ID: "585270521", APP_STORE_COUNTRY: "IN", APP_STORE_RSS_PAGES: "1" };
+    vi.doMock("../src/utils/http", () => ({
+      sleep: vi.fn(async () => undefined),
+      fetchWithRetry: vi.fn(async () => ({
+        status: 200,
+        data: {
+          feed: {
+            entry: [{
+              title: { label: "Gaana Music" },
+              content: { label: "App metadata, not a customer review." },
+              updated: { label: "2026-07-01T10:00:00Z" },
+            }],
+          },
+        },
+      })),
+    }));
+    vi.resetModules();
+
+    const { scrapeAppStore } = await import("../src/scrapers/appStoreScraper");
+    const result = await scrapeAppStore(new Date("2026-06-01"), new Date("2026-07-31"));
+
+    expect(result.error).toBe("rss_returned_no_review_entries");
+    expect(result.diagnostics).toMatchObject({
+      rssStatusCode: 200,
+      rssEntryCount: 2,
+      rssReviewLikeEntryCount: 0,
+      parsedReviewCount: 0,
+      finalReason: "rss_returned_no_review_entries",
+    });
+  });
+
   it("gets a Reddit OAuth token when credentials are configured", async () => {
     process.env = {
       ...originalEnv,
@@ -449,7 +481,41 @@ describe("review source adapters", () => {
 
     expect(searchPublicWebMock).toHaveBeenCalled();
     expect(result.error).toBeUndefined();
-    expect(result.diagnostics).toMatchObject({ apiStatusCode: 200, rawResultCount: 5, finalReason: "web_search_succeeded" });
+    expect(result.diagnostics).toMatchObject({ apiStatusCode: 200, rawResultCount: 10, finalReason: "web_search_succeeded" });
+  });
+
+  it("keeps Web/News search results without dates in the selected recent range", async () => {
+    process.env = { ...originalEnv, WEB_SEARCH_PROVIDER: "brave", WEB_SEARCH_API_KEY: "search-key" };
+    vi.doMock("../src/services/webSearchProvider", () => ({
+      searchPublicWebWithDiagnostics: vi.fn(async () => ({
+        results: [{ title: "Gaana review", snippet: "Gaana app user review without provider date.", url: `https://example.com/${Math.random()}`, date: null }],
+        diagnostics: { provider: "brave", requestAttempted: true, statusCode: 200, rawResponseShape: "object{web}", rawResultCount: 1, normalizedResultCount: 1, errorType: null, errorMessageSafe: null },
+      })),
+      toSourceAdapterDiagnostics: (source: string, diagnostics: any, finalReason: string) => ({
+        source,
+        apiAttempted: true,
+        apiStatusCode: diagnostics.statusCode,
+        rawResponseShape: diagnostics.rawResponseShape,
+        rawResultCount: diagnostics.rawResultCount,
+        normalizedResultCount: diagnostics.normalizedResultCount,
+        queriesAttempted: diagnostics.queriesAttempted,
+        sourceFilteredCount: diagnostics.sourceFilteredCount,
+        dateInferredCount: diagnostics.dateInferredCount,
+        dateDroppedCount: diagnostics.dateDroppedCount,
+        finalAfterDateFilterCount: diagnostics.finalAfterDateFilterCount,
+        finalReason,
+        provider: diagnostics.provider,
+      }),
+    }));
+    vi.resetModules();
+
+    const { scrapeWebNews } = await import("../src/scrapers/webNewsScraper");
+    const result = await scrapeWebNews(new Date("2000-01-01"), new Date("2100-01-01"));
+
+    expect(result.reviews.length).toBeGreaterThan(0);
+    expect(result.reviews.every((review) => review.source === "web_news")).toBe(true);
+    expect(result.reviews.every((review) => review.dateSource === "inferred_current_date")).toBe(true);
+    expect(result.diagnostics?.dateInferredCount).toBeGreaterThan(0);
   });
 
   it("source config diagnostics do not expose secret values", async () => {

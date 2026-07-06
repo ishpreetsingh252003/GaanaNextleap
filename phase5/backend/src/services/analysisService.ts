@@ -87,6 +87,11 @@ export interface SourceDiagnostic {
   rssEntryCount?: number;
   rssReviewLikeEntryCount?: number;
   parsedReviewCount?: number;
+  queriesAttempted?: string[];
+  sourceFilteredCount?: number;
+  dateInferredCount?: number;
+  dateDroppedCount?: number;
+  finalAfterDateFilterCount?: number;
 }
 
 export function fallbackToReview(review: FallbackReview): Review {

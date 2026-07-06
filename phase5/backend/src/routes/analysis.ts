@@ -353,6 +353,11 @@ function buildDiagnosticForSource(
     rssEntryCount: adapter?.rssEntryCount,
     rssReviewLikeEntryCount: adapter?.rssReviewLikeEntryCount,
     parsedReviewCount: adapter?.parsedReviewCount,
+    queriesAttempted: adapter?.queriesAttempted,
+    sourceFilteredCount: adapter?.sourceFilteredCount,
+    dateInferredCount: adapter?.dateInferredCount,
+    dateDroppedCount: adapter?.dateDroppedCount,
+    finalAfterDateFilterCount: adapter?.finalAfterDateFilterCount,
   };
 }
 
@@ -363,6 +368,7 @@ function reasonForFetchFailure(source: ScraperKey, reason: unknown): string {
     "missing_app_store_app_id",
     "rss_fetch_succeeded",
     "rss_returned_empty",
+    "rss_returned_no_review_entries",
     "parser_returned_empty",
     "rss_fetch_failed",
     "reddit_oauth_succeeded",

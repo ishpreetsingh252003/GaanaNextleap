@@ -17,6 +17,8 @@ export async function scrapeQuora(
   const reviews: Review[] = [];
   const seenUrls = new Set<string>();
   let rawResultCount = 0;
+  let dateInferredCount = 0;
+  let dateDroppedCount = 0;
   let lastDiagnostics: SourceAdapterDiagnostics | undefined;
 
   try {
@@ -26,16 +28,24 @@ export async function scrapeQuora(
       for (const result of results) {
         if (seenUrls.has(result.url)) continue;
         seenUrls.add(result.url);
-        const date = normalizeReviewDate(result.date) || normalizeReviewDate(new Date())!;
-        if (!isWithinRange(date, fromDate, toDate)) continue;
+        const providerDate = normalizeReviewDate(result.date);
+        const date = providerDate || normalizeReviewDate(new Date())!;
+        if (!providerDate) dateInferredCount++;
+        if (!isWithinRange(date, fromDate, toDate)) {
+          dateDroppedCount++;
+          continue;
+        }
         reviews.push({
           id: uuid(),
           source: "quora",
+          platform: "quora",
           rating: null,
           title: result.title,
           text: result.snippet,
+          body: result.snippet,
           author: "community_result",
           date,
+          dateSource: providerDate ? "provider" : "inferred_current_date",
           url: result.url,
           lang: "en",
         });
@@ -44,6 +54,11 @@ export async function scrapeQuora(
         ...diagnostics,
         rawResultCount,
         normalizedResultCount: reviews.length,
+        queriesAttempted: COMMUNITY_QUERIES,
+        sourceFilteredCount: seenUrls.size,
+        dateInferredCount,
+        dateDroppedCount,
+        finalAfterDateFilterCount: reviews.length,
       }, reviews.length === 0 ? "community_search_no_results" : "community_search_succeeded");
     }
 
@@ -83,6 +98,11 @@ function buildFallbackDiagnostics(finalReason: string): SourceAdapterDiagnostics
     rawResponseShape: null,
     rawResultCount: 0,
     normalizedResultCount: 0,
+    queriesAttempted: COMMUNITY_QUERIES,
+    sourceFilteredCount: 0,
+    dateInferredCount: 0,
+    dateDroppedCount: 0,
+    finalAfterDateFilterCount: 0,
     finalReason,
   };
 }

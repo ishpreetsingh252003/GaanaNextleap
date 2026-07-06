@@ -9,6 +9,10 @@ export interface Review {
   date: string;
   url: string | null;
   lang: string;
+  platform?: string;
+  body?: string;
+  review_id?: string;
+  dateSource?: "provider" | "inferred_current_date";
   cleaned_text?: string;
   pii_found?: boolean;
   cleaning_applied?: string[];
@@ -56,4 +60,9 @@ export interface SourceAdapterDiagnostics {
   rssEntryCount?: number;
   rssReviewLikeEntryCount?: number;
   parsedReviewCount?: number;
+  queriesAttempted?: string[];
+  sourceFilteredCount?: number;
+  dateInferredCount?: number;
+  dateDroppedCount?: number;
+  finalAfterDateFilterCount?: number;
 }
